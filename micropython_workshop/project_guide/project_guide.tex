@@ -83,9 +83,19 @@
   xleftmargin=15pt,
 }
 
+% Helper: include an image if the file exists, otherwise show a placeholder box
+\newcommand{\maybeincludegraphics}[2][]{%
+  \IfFileExists{images/#2}{%
+    \includegraphics[#1]{#2}%
+  }{%
+    \framebox[0.6\linewidth][c]{\textit{[photo placeholder]}}%
+  }%
+}
+
 \begin{document}
 
-\includepdf{title_page.pdf}
+% Include the title page PDF if it exists; skip gracefully during CI when not yet present
+\IfFileExists{title_page.pdf}{\includepdf{title_page.pdf}}{}
 
 \tableofcontents
 
