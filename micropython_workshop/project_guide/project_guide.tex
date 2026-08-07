@@ -1,0 +1,107 @@
+% Some help here: https://en.wikibooks.org/wiki/LaTeX/Document_Structure
+
+% Preamble
+% ---
+\documentclass{report}
+
+\usepackage[left=0.5in,right=0.5in,bottom=0.5in,top=0.5in]{geometry}
+
+% Packages
+% ---
+\usepackage{graphicx} % Add pictures to your document
+\graphicspath{ {images/} }  % we will keep our images organized under the images directory
+\usepackage{listings} % Source code formatting and highlighting
+\usepackage{xcolor}   % needed to color hyperlinks and source code
+\usepackage{hyperref} % create hyperlinks
+\usepackage[T1]{fontenc} % make sure quotes in Python listings are straight quotes
+\usepackage{tcolorbox}
+\usepackage{siunitx} % Allows us to use math symbols (like Omega) in normal paragraphs
+\usepackage{float} % Allows specifying putting an image exactly where it is in the .tex code flow
+\usepackage{pdfpages} % used to include an externally created PDF (like our cover)
+\usepackage{titlesec} % allow formatting of the chapter/section headers
+
+% formatting of chapters shamelessly copied from here: https://tex.stackexchange.com/a/591399
+%%%%%%%%%% chapters
+\titleformat
+{\chapter} % command to format
+[block] % shape: hang, display, block, frame etc
+{\sffamily\bfseries\Large}  % format of label + chapter title
+{\chaptertitlename\ \thechapter:} % label "Chapter 1:"
+{1.5ex} % separation label - chapter title
+{} % code before
+
+\titlespacing{\chapter}
+{0pt} %left of the label + title
+{*0} % vertical space before the title
+{*6.5} % idem after title (in ex units + glue)
+
+%%%%%%%%%%%%%%  sections
+\titleformat{\section}
+[block] % shape
+{\sffamily\large\bfseries}% format (keep the chapter font family!)
+{\thesection} % label "1.1"
+{0.8ex}% separation label -  section title
+{}
+
+\titlespacing{\section}
+{0pt} %left of label + section title
+{*4} % before the label + section title
+{*1.5} % after
+
+\titleformat{\subsection}
+[block] % shape
+{\sffamily\bfseries}% format (keep the chapter font family!)
+{\thesubsection} % label "1.1.1"
+{0.8ex}% separation label -  section title
+{}
+
+\titlespacing{\subsection}
+{0pt} %left of label + section title
+{*4} % before the label + section title
+{*1.5} % after
+
+\hypersetup{
+    linktoc=all,              % set to all if you want both sections and subsections linked
+    colorlinks=false,         % hyperlink text will be black
+    linkbordercolor=black,    % hyperlink borders will be black
+    pdfborderstyle={/S/U/W 1} % border style will be underline of width 1pt
+}
+
+\lstloadlanguages{Python}
+\lstset{
+  language=Python,
+  numberstyle=\color{gray},
+  stringstyle=\color[HTML]{933797},
+  commentstyle=\color[HTML]{228B22},
+  emph={[2]from,import,pass,return}, emphstyle={[2]\color[HTML]{DD52F0}},
+  emph={[3]range}, emphstyle={[3]\color[HTML]{D17032}},
+  emph={[4]for,in,def}, emphstyle={[4]\color{blue}},
+  showstringspaces=false,
+  breaklines=true,
+  prebreak=\mbox{{\color{gray}\tiny$\searrow$}},
+  numbers=left,
+  xleftmargin=15pt,
+}
+
+\begin{document}
+
+\includepdf{title_page.pdf}
+
+\tableofcontents
+
+\input{introduction/introduction.tex}
+\input{electronics_preamble/electronics_preamble.tex}
+\input{micropython_ide/micropython_ide.tex}
+
+\input{projects/project_1.tex}
+\input{projects/project_2.tex}
+\input{projects/project_3.tex}
+\input{projects/project_4.tex}
+\input{projects/project_5.tex}
+\input{projects/project_6.tex}
+\input{projects/project_7.tex}
+
+\appendix
+\input{python_appendix/python_appendix.tex}
+
+\end{document}
