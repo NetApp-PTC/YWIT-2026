@@ -3,8 +3,9 @@ Ideas for 2026 microcontroller workshop
 
 * Pocket DJ
   - A handheld digital insturment. Students program pitch frequencies, rhythm loops, and an LED pulse animation synchronized to the sound
-  - https://www.amazon.com/Brightness-Breakout-Module-Ws2812-Breadboard/dp/B08KGQ8866
+  - https://www.amazon.com/Treedix-WS2812B-Individually-Addressable-Raspberry/dp/B09FSTT43H (3 segments per student)
   - push buttons
+  - speaker
 
 * Reflex Arcade
   - A reaction-time game. An LED lights up after a random delay; the user must press their button as fast as possible. Their reaction time is calculated and logged on the screen
