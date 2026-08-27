@@ -1,25 +1,123 @@
-\chapter{Project 3: Reflex Arcade}
+\chapter{Project 3: Red Light, Green Light}
 
 \section{Overview}
-% TODO: Fill in project overview
-This project is a placeholder for Project 3 (Reflex Arcade).
-A reaction-time game where an LED lights up after a random delay and the user must press
-their button as fast as possible. Their reaction time is calculated and displayed on the screen.
+In this project, you will build a reflex game with a button and a 3-pixel WS2812B LED strip.
+Each reaction window cycles through red, yellow, and green phases:
+\begin{itemize}
+    \item During \textbf{RED}, do not press. Pressing during red ends the round immediately.
+    \item During \textbf{YELLOW}, get ready for green and do not press yet.
+    \item During \textbf{GREEN}, press the button as quickly as possible to score a point.
+\end{itemize}
+
+Each successful green press prints your reaction time in milliseconds to the serial console.
+Each round has 5 total reaction windows. A hit during green scores a point, and a missed green
+window counts as a miss.
+
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!40!black]
+    \textbf{Learning goals:}
+    \begin{itemize}
+        \item Read a pushbutton using an internal pull-up resistor
+        \item Control WS2812B addressable LEDs with MicroPython
+        \item Build a simple game state machine
+        \item Measure reaction time with millisecond timers
+    \end{itemize}
+\end{tcolorbox}
 
 \pagebreak
 
+\section{Components}
+\begin{itemize}
+    \item Seeed XIAO ESP32-C3 microcontroller
+    \item 3x WS2812B addressable RGB LEDs wired in series
+    \item 1x pushbutton
+    \item Breadboard
+    \item Jumper wires
+\end{itemize}
+
 \section{Directions}
 
+\subsubsection{Remove previous components}
+Before starting Project 3, remove components and wires from the previous project.
+
 \subsection{Creating the circuit}
-% TODO: Add wiring instructions and breadboard diagram
+
+\subsubsection{WS2812B strip wiring}
+Wire your 3-pixel WS2812B chain as follows:
+\begin{center}
+\begin{tabular}{|l|l|l|}
+    \hline
+    \textbf{WS2812B Pin} & \textbf{XIAO GPIO} & \textbf{XIAO Label} \\
+    \hline
+    DIN (first LED) & GPIO 20 & D7 \\
+    VCC             & 3V3 & 3V3 \\
+    GND             & GND & GND \\
+    \hline
+\end{tabular}
+\end{center}
+
+\subsubsection{Button wiring}
+Wire a pushbutton between GPIO21 and GND:
+\begin{center}
+\begin{tabular}{|l|l|l|}
+    \hline
+    \textbf{Button Pin} & \textbf{XIAO GPIO} & \textbf{XIAO Label} \\
+    \hline
+    One side & GPIO 21 & D6 \\
+    Other side & GND & GND \\
+    \hline
+\end{tabular}
+\end{center}
+
+The code enables the internal pull-up resistor, so the pin reads HIGH when idle and LOW when pressed.
 
 \subsection{Programming the microcontroller}
-% TODO: Add programming instructions
-Click on the file named "project\_3\_reflex\_arcade.py" and run it using the IDE.
-Refer back to Chapter \ref{ide} for IDE instructions.
+Open the file \texttt{project\_3\_red\_light\_green\_light.py} and run it in the IDE (Chapter \ref{ide}).
+
+At startup, the serial console will print instructions and wait for a button press to begin:
+\begin{verbatim}
+Project 3: Red Light, Green Light
+Press button to start.
+\end{verbatim}
+
+During gameplay:
+\begin{itemize}
+    \item The 3 LEDs act like a stoplight: red LED, yellow LED, and green LED are used individually.
+    \item RED phase lights only the red LED and prints ``RED! Do not press.''
+    \item YELLOW phase lights only the yellow LED and prints ``YELLOW! Get ready...''
+    \item GREEN phase lights only the green LED and prints ``GREEN! Press now.''
+    \item Idle/round-over uses the yellow LED as a waiting indicator.
+    \item A valid green press prints reaction time and increases score.
+    \item A missed green window is counted as one of the 5 windows.
+    \item A red/yellow press ends the round and prints final score + best reaction.
+\end{itemize}
+
+\subsection{Hardware test checklist}
+Use this checklist to confirm your circuit and code are working:
+\begin{enumerate}
+    \item Confirm LED order on your strip: first LED (DIN side) is red, middle is yellow, last is green.
+    \item Press button from idle state: yellow wait indicator transitions into red/green gameplay cycling.
+    \item Wait for GREEN (green LED only) and press quickly: score increases and a reaction time is printed.
+    \item Do not press during RED or YELLOW: pressing before green ends the round immediately.
+    \item Skip pressing during one green window: verify it is counted as a miss and the next window starts.
+    \item Repeat at least 5 rounds to confirm stable behavior and reliable button detection.
+\end{enumerate}
 
 \section{Review}
-% TODO: Add review content
+In this project, you combined timed logic, button input, and LED output to build a full game loop.
+You practiced:
+\begin{itemize}
+    \item State-based programming (idle, green, red, round\_over)
+    \item Reusing a shared debounced button library for cleaner input handling
+    \item Using \texttt{time.ticks\_ms()} and \texttt{time.ticks\_diff()} for timing
+    \item Providing immediate visual and text feedback to players
+\end{itemize}
 
 \section{Possible Extensions}
-% TODO: Add extension ideas
+Try these enhancements:
+\begin{itemize}
+    \item Add difficulty levels by shrinking GREEN timing windows
+    \item Display average reaction time after each round
+    \item Add a buzzer sound effect for valid and invalid presses
+    \item Use different LED patterns (chase, blink, gradient) per game state
+    \item Add a countdown before each round starts
+\end{itemize}
