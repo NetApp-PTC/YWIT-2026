@@ -1,24 +1,113 @@
 \chapter{Project 5: Wi-Fi Mood Lamp}
 
 \section{Overview}
-% TODO: Fill in project overview
-This project is a placeholder for Project 5 (Wi-Fi Mood Lamp).
-Students will write a local web server that displays a dashboard allowing control of LED lights.
+In this project, your ESP32-C3 becomes both a Wi-Fi access point and a light controller.
+After uploading a Python file plus one HTML dashboard file, you will connect your phone or
+laptop to the microcontroller's network, open a local web page, and control a chain of
+three WS2812B LEDs.
+
+You will build:
+\begin{itemize}
+    \item A password-protected Wi-Fi network hosted by the ESP32-C3
+    \item A local web dashboard served directly from the board
+    \item Manual lighting controls for all LEDs together and for each LED individually
+    \item A set of built-in animations (breathing, rainbow, wipe, and blink)
+\end{itemize}
+
+By the end, you will have a complete wireless ``mood lamp'' that works without internet.
 
 \pagebreak
+
+\section{Components}
+
+\begin{itemize}
+    \item Seeed XIAO ESP32-C3 microcontroller
+    \item 3-pixel WS2812B LED segment (or 3 chained WS2812B LEDs)
+    \item Breadboard
+    \item Jumper wires
+\end{itemize}
 
 \section{Directions}
 
 \subsection{Creating the circuit}
-% TODO: Add wiring instructions and breadboard diagram
+Before starting, remove components from earlier projects that are no longer needed.
+
+Wire the LEDs as follows:
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+    \hline
+    \textbf{WS2812B Pin} & \textbf{XIAO ESP32-C3} & \textbf{Notes} \\
+    \hline
+    DIN (data in) & GPIO 20 (D7) & Data input for first LED \\
+    VCC & 5V (or 3V3) & 5V is preferred for brightness consistency \\
+    GND & GND & Must share ground with microcontroller \\
+    \hline
+\end{tabular}
+\end{center}
+
+If using a pre-wired 3-LED segment, make sure your wire is connected to the side labeled
+``DIN'' (not ``DOUT'').
+
+\begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!50!black]
+    \textbf{Important:} Data direction matters. WS2812B LEDs are one-way devices.
+    If DIN/DOUT are swapped, the LEDs will not respond.
+\end{tcolorbox}
 
 \subsection{Programming the microcontroller}
-% TODO: Add programming instructions
-Click on the file named "project\_5\_wifi\_mood\_lamp.py" and run it using the IDE.
+Upload both files from the project code folder to your microcontroller:
+\begin{itemize}
+    \item \texttt{project\_5\_wifi\_mood\_lamp.py}
+    \item \texttt{resources/project\_5\_wifi\_mood\_lamp.html}
+\end{itemize}
+
+Keep the \texttt{resources/} folder name exactly the same on the microcontroller filesystem.
+The Python script loads the dashboard from that path.
+
+Then open \texttt{project\_5\_wifi\_mood\_lamp.py} in the IDE and run it.
 Refer back to Chapter \ref{ide} for IDE instructions.
 
+When the script starts, watch the serial output. It prints:
+\begin{itemize}
+    \item A unique Wi-Fi network name (SSID), such as \texttt{MoodLamp-1A2B3C}
+    \item The Wi-Fi password defined in code
+    \item The local IP address for the control page
+\end{itemize}
+
+From your laptop or phone:
+\begin{enumerate}
+    \item Open Wi-Fi settings and connect to the printed SSID
+    \item Enter the password
+    \item Open a browser and navigate to the printed IP address (for example \texttt{http://192.168.4.1/})
+\end{enumerate}
+
+The dashboard includes:
+\begin{itemize}
+    \item \textbf{Global controls:} Set color and brightness for all LEDs at once
+    \item \textbf{Per-LED controls:} Set each LED independently
+    \item \textbf{Animation controls:} Start/stop breathing, rainbow, wipe, and blink
+\end{itemize}
+
+\begin{tcolorbox}[colback=green!5!white,colframe=green!40!black]
+    \textbf{Tip:} If many students are in the room, the unique suffix in the SSID helps you identify
+    your own board quickly.
+\end{tcolorbox}
+
 \section{Review}
-% TODO: Add review content
+In this project, you combined embedded networking and LED control in one program. You practiced:
+\begin{itemize}
+    \item Hosting a Wi-Fi access point directly on an ESP32-C3
+    \item Serving a local web interface from a microcontroller
+    \item Parsing user commands from HTTP requests
+    \item Driving WS2812B LEDs with both static colors and animated effects
+    \item Designing a system that is interactive, wireless, and real-time
+\end{itemize}
 
 \section{Possible Extensions}
-% TODO: Add extension ideas
+\begin{itemize}
+    \item Add a ``favorites'' list of saved color presets
+    \item Add a timed auto-off feature (for example, sleep after 30 minutes)
+    \item Add a ``party mode'' that randomly cycles between multiple effects
+    \item Add an ambient light sensor and auto-adjust brightness
+    \item Add a physical button that toggles between saved scenes without opening the web page
+\end{itemize}

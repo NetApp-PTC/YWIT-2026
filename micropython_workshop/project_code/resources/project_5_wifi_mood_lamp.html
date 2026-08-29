@@ -1,0 +1,153 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wi-Fi Mood Lamp</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 16px; background:#0e0f1a; color:#f2f2f2; }
+    .card { background:#1b1d30; border-radius:12px; padding:14px; margin:10px 0; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    button { padding:8px 12px; border-radius:8px; border:0; cursor:pointer; }
+    input[type="range"] { width:200px; }
+    select { padding:8px; border-radius:8px; }
+    .muted { color:#bbb; font-size: 0.95em; }
+    .led { border-top:1px solid #2d3153; margin-top:10px; padding-top:10px; }
+    .ok { color:#8ee28e; }
+    .err { color:#ff9a9a; }
+    code { background:#101224; padding:2px 6px; border-radius:6px; }
+  </style>
+</head>
+<body>
+  <h2>Project 5: Wi-Fi Mood Lamp</h2>
+  <div class="card muted" id="netInfo">Loading network info...</div>
+  <div class="card" id="statusLine">Status: ready</div>
+
+  <div class="card">
+    <h3>Global Controls (all LEDs)</h3>
+    <div class="row">
+      <input id="globalColor" type="color" value="#501478" />
+      <label>Brightness <input id="globalBrightness" type="range" min="0" max="100" value="40" /></label>
+      <button onclick="setGlobal()">Apply Global</button>
+      <button onclick="setMode('global')">Switch to Global Mode</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Per-LED Controls</h3>
+    <div id="ledControls"></div>
+    <div class="row">
+      <button onclick="setMode('per_led')">Switch to Per-LED Mode</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Animations</h3>
+    <div class="row">
+      <select id="animName">
+        <option value="breathing">breathing</option>
+        <option value="rainbow">rainbow</option>
+        <option value="wipe">wipe</option>
+        <option value="blink">blink</option>
+      </select>
+      <label>Speed <input id="animSpeed" type="range" min="1" max="100" value="50" /></label>
+      <button onclick="startAnimation()">Start</button>
+      <button onclick="stopAnimation()">Stop</button>
+    </div>
+  </div>
+
+  <script>
+    function rgbToHex(r,g,b){ return "#" + [r,g,b].map(v=>v.toString(16).padStart(2,"0")).join(""); }
+    function hexToRgb(hex){
+      const h = hex.replace("#","");
+      return { r: parseInt(h.slice(0,2),16), g: parseInt(h.slice(2,4),16), b: parseInt(h.slice(4,6),16) };
+    }
+    function setStatus(msg, ok=true){
+      const el = document.getElementById("statusLine");
+      el.className = "card " + (ok ? "ok" : "err");
+      el.textContent = "Status: " + msg;
+    }
+    async function api(path, payload){
+      const res = await fetch(path, {
+        method: payload ? "POST" : "GET",
+        headers: payload ? {"Content-Type":"application/json"} : {},
+        body: payload ? JSON.stringify(payload) : undefined
+      });
+      const data = await res.json();
+      if (!res.ok || data.ok === false) {
+        throw new Error((data && data.error) ? data.error : ("HTTP " + res.status));
+      }
+      return data;
+    }
+    function makeLedControl(i){
+      const wrap = document.createElement("div");
+      wrap.className = "led";
+      wrap.innerHTML = `
+        <div class="row">
+          <strong>LED ${i}</strong>
+          <input type="color" id="ledColor${i}" value="#501478" />
+          <label>Brightness <input type="range" id="ledBright${i}" min="0" max="100" value="40" /></label>
+          <button onclick="setLed(${i})">Apply LED ${i}</button>
+        </div>
+      `;
+      return wrap;
+    }
+    async function refreshState(){
+      const s = await api("/state");
+      document.getElementById("netInfo").innerHTML =
+        `Connect to <code>${s.ssid}</code> and open <code>http://${s.ip}/</code><br/>Mode: <code>${s.mode}</code>`;
+      document.getElementById("globalColor").value = rgbToHex(s.global.r, s.global.g, s.global.b);
+      document.getElementById("globalBrightness").value = s.global.brightness;
+      document.getElementById("animSpeed").value = s.animation.speed;
+      if (s.animation.name) document.getElementById("animName").value = s.animation.name;
+      for (let i = 0; i < s.leds.length; i++) {
+        const led = s.leds[i];
+        document.getElementById("ledColor"+i).value = rgbToHex(led.r, led.g, led.b);
+        document.getElementById("ledBright"+i).value = led.brightness;
+      }
+    }
+    async function setGlobal(){
+      try{
+        const c = hexToRgb(document.getElementById("globalColor").value);
+        const b = Number(document.getElementById("globalBrightness").value);
+        await api("/set/global", {r:c.r, g:c.g, b:c.b, brightness:b});
+        setStatus("Global color applied");
+      } catch (e){ setStatus(e.message, false); }
+    }
+    async function setLed(index){
+      try{
+        const c = hexToRgb(document.getElementById("ledColor"+index).value);
+        const b = Number(document.getElementById("ledBright"+index).value);
+        await api("/set/led", {index:index, r:c.r, g:c.g, b:c.b, brightness:b});
+        setStatus("Updated LED " + index);
+      } catch (e){ setStatus(e.message, false); }
+    }
+    async function setMode(mode){
+      try{
+        await api("/set/mode", {mode});
+        setStatus("Mode set to " + mode);
+      } catch (e){ setStatus(e.message, false); }
+    }
+    async function startAnimation(){
+      try{
+        const name = document.getElementById("animName").value;
+        const speed = Number(document.getElementById("animSpeed").value);
+        await api("/set/animation", {name, speed});
+        setStatus("Animation started: " + name);
+      } catch (e){ setStatus(e.message, false); }
+    }
+    async function stopAnimation(){
+      try{
+        await api("/set/stop", {});
+        setStatus("Animation stopped");
+      } catch (e){ setStatus(e.message, false); }
+    }
+    (function init(){
+      const root = document.getElementById("ledControls");
+      for (let i = 0; i < 3; i++) root.appendChild(makeLedControl(i));
+      refreshState().catch(e => setStatus(e.message, false));
+      setInterval(() => refreshState().catch(() => {}), 2500);
+    })();
+  </script>
+</body>
+</html>
