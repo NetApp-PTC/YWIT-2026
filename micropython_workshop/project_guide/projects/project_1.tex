@@ -1,23 +1,190 @@
-\chapter{Project 1: Blink}
+\chapter{Project 1: Night Light}
 
 \section{Overview}
-% TODO: Fill in project overview
-This project is a placeholder for Project 1.
+This project is designed to provide a foundation for subsequent projects in this book (\textbf{and beyond}).
+Over the course of this project, you will:
+\begin{itemize}
+    \item Create a simple circuit using your breadboard
+    \item Write a program that runs in a loop
+    \item Use MicroPython to read an analog sensor and drive an LED with PWM
+\end{itemize}
+At the end of this project, your microcontroller should run a MicroPython program that dims and
+brightens an LED as you cover and uncover a light sensor. Cover the sensor with your hand and the
+LED should get brighter---like a night light.
+\begin{figure}[H]
+\centering
+    \maybeincludegraphics[width=.6\linewidth]{project_1/success!.jpg}
+    \caption{The end result should look something like this}
+\end{figure}
+
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!40!black]
+    \textbf{Learning goals:}
+    \begin{itemize}
+        \item Build a first breadboard circuit with an LED, a current-limiting resistor, and an LDR
+        \item Read a light level with the microcontroller's analog-to-digital converter (ADC)
+        \item Use PWM (Pulse Width Modulation) to set LED brightness instead of only on or off
+    \end{itemize}
+\end{tcolorbox}
 
 \pagebreak
 
+\section{Components}
+\begin{itemize}
+    \item Seeed XIAO ESP32-C3 microcontroller
+    \item 1x LED (any color)
+    \item 1x 220\si{\ohm} resistor (for the LED)
+    \item 1x photoresistor (LDR)
+    \item 1x 10\si{\kilo\ohm} resistor (for the LDR voltage divider)
+    \item Breadboard
+    \item Jumper wires
+\end{itemize}
+
 \section{Directions}
 
+\subsubsection{Remove previous components}
+Before beginning, remove any components from prior chapters including LEDs, buttons, and wires. You may leave the
+microcontroller attached to the breadboard.
+
 \subsection{Creating the circuit}
-% TODO: Add wiring instructions and breadboard diagram
+Using jumper cables, you will assemble two small circuits: an LED with a current-limiting resistor,
+and a light sensor made from an LDR and a 10\si{\kilo\ohm} resistor.
+
+\subsubsection{Attach the microcontroller to the breadboard}
+Carefully insert the pins at the bottom of your microcontroller into the breadboard, making sure that the microcontroller is oriented such that:
+\begin{itemize}
+    \item The pin labeled \textbf{5V} is inserted in hole at \textbf{Column H, Row 1} of the breadboard (or \textbf{H1}, for short)
+    \item The pin labeled \textbf{GPIO2} is inserted in hole \textbf{D1} of the breadboard
+    \item The pin labeled \textbf{GPIO20} is inserted in hole \textbf{H7} of the breadboard
+    \item the pin labeled \textbf{GPIO21} is inserted in hole \textbf{D7} of the breadboard
+\end{itemize}
+You may need to apply more pressure than expected to seat the microcontroller properly in the breadboard. When its over, it should look like this:
+
+\begin{figure}[H]
+    \centering
+    \maybeincludegraphics[width=.6\linewidth]{common/microcontroller_seated_in_breadboard.jpg}
+    \caption{So far, so good!}
+\end{figure}
+
+\subsubsection{Connect the LED and 220\si{\ohm} resistor}
+Place an LED of your choice (the example image below uses RED) into the breadboard. The longer leg
+should be placed in \textbf{B16} and the shorter leg should be placed in \textbf{B17}. Then place one
+leg of a 220\si{\ohm} resistor (doesn't matter which one) in \textbf{A17} and the other in \textbf{A21}.
+
+You should be left with something that looks like this:
+\begin{figure}[H]
+    \centering
+    \maybeincludegraphics[width=.55\linewidth]{project_1/led_placed.jpg}
+    \caption{The LED and its current-limiting resistor are placed.}
+\end{figure}
+
+\begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!50!black]
+    NOTE: Whenever you connect an LED to a microcontroller, you must always connect a resistor in series
+    with it. In series means that the power goes in one leg of the LED, the other leg of the LED is attached
+    to one leg of the resistor, and the ground completes the circuit from the other leg of the resistor.
+    This is important so that you do not burn out the LED and/or the microcontroller pin.
+\end{tcolorbox}
+
+\subsubsection{Connect the LDR and 10\si{\kilo\ohm} resistor}
+An LDR (light-dependent resistor) has no polarity---either orientation is fine. Place one leg in
+\textbf{B10} and the other in \textbf{B11}. Then place one leg of a 10\si{\kilo\ohm} resistor in
+\textbf{A10} and the other in \textbf{A14}.
+
+The LDR and the 10\si{\kilo\ohm} resistor share row 10. Together they form a \textbf{voltage divider}:
+the microcontroller will measure the voltage at that shared row, which changes as the LDR sees more or
+less light.
+
+\begin{figure}[H]
+    \centering
+    \maybeincludegraphics[width=.55\linewidth]{project_1/components_placed.jpg}
+    \caption{All of the components except for the jumper wires are now placed.}
+\end{figure}
+
+\subsubsection{Connect the necessary jumper wires}
+\begin{itemize}
+    \item Place one end of a red jumper wire into hole \textbf{J7} of the breadboard and the other end into
+    \textbf{E16}. This connects \textbf{GPIO 20} to the LED. The program will use PWM on this pin to set brightness.
+    \item Using a black jumper wire, place one end of the wire into hole \textbf{J2} of the breadboard and the other
+    end into \textbf{E21}. This provides a ground path for the LED through the 220\si{\ohm} resistor.
+    \item Place one end of a jumper wire into hole \textbf{E1} and the other end into \textbf{E10}. This connects
+    \textbf{GPIO 2} (the analog input) to the LDR / 10\si{\kilo\ohm} junction.
+    \item Place one end of a jumper wire into hole \textbf{J3} and the other end into \textbf{E11}. This provides
+    \textbf{3.3} volts to the other side of the LDR.
+    \item Using a black jumper wire, place one end into hole \textbf{I2} and the other end into \textbf{E14}.
+    This provides a ground path for the 10\si{\kilo\ohm} resistor.
+\end{itemize}
+
+You should be left with something that looks like this:
+\begin{figure}[H]
+    \centering
+    \maybeincludegraphics[width=.55\linewidth]{project_1/wired_up.jpg}
+    \caption{I'm absolutely POSITIVE I connected everything correctly!}
+\end{figure}
+
+With this wiring, more light on the LDR lowers its resistance, which \textbf{raises} the voltage (and the
+number) that GPIO 2 reads. The program inverts that number so a darker sensor makes a brighter LED.
 
 \subsection{Programming the microcontroller}
-% TODO: Add programming instructions
-Click on the file named "project\_1\_blink.py" and run it using the IDE.
-Refer back to Chapter \ref{ide} for IDE instructions.
+
+Once all of the wiring is correct, connect the USB cable to the microcontroller and load the IDE to
+access it. Refer back to Chapter \ref{ide} for instructions.
+
+Click on the file named ``project\_1\_night\_light.py''. This will load the code in the editor for this section.
+Read through the comments and the code to get a sense for how it works. Once you are ready, you can
+click the blue play button in the upper left of the window to start the script.
+
+\subsection{How the program works}
+
+The light sensor is read with the microcontroller's ADC (analog-to-digital converter). That reading is
+a number from 0 to 4095.
+
+The LED is driven with PWM (Pulse Width Modulation). Instead of leaving the pin fully on or fully off,
+PWM switches it on and off very quickly (here, 1000 times per second). The fraction of time it stays on
+is called the \textbf{duty cycle}. Your eye averages that into a brightness: duty 0 is off, duty 1023 is
+as bright as this pin can make the LED, and values in between are dimmer.
+
+Each loop, the program reads the sensor, inverts the value so darkness becomes a larger duty, and updates
+the LED:
+
+\begin{lstlisting}[language=Python, caption=Mapping sensor reading to LED brightness]
+level = sensor.read()
+duty = (ADC_MAX - level) * PWM_MAX // ADC_MAX
+led.duty(duty)
+print(level, duty)
+\end{lstlisting}
+
+The IDE console will print two numbers over and over: the raw sensor reading, then the PWM duty.
+Cover the LDR with your hand and you should see the first number go \textbf{down}, the second number go
+\textbf{up}, and the LED get brighter. Uncover it and the LED should dim.
+
+You can stop the script by pressing the red stop button located where the blue play button used to be.
+
+\begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!50!black]
+    \textbf{If something does not work:}
+    \begin{itemize}
+        \item If the LED never lights, check LED polarity (longer leg toward GPIO 20 / hole B16), the
+        220\si{\ohm} resistor, and the jumper from \textbf{J7} to \textbf{E16}.
+        \item If the LED lights but does not change when you cover the sensor, check the LDR divider:
+        GPIO 2 (\textbf{E1} to \textbf{E10}), 3.3V (\textbf{J3} to \textbf{E11}), and ground (\textbf{I2}
+        to \textbf{E14}). Watch the printed numbers---if they never move, the sensor wiring is the problem.
+        \item Classroom lighting varies. If the LED looks stuck bright or stuck dim, cover the LDR fully
+        with your hand, then uncover it, and compare the two printed \texttt{level} values.
+    \end{itemize}
+\end{tcolorbox}
 
 \section{Review}
-% TODO: Add review content
+In this project, we learned the basics of setting up a simple circuit and running some code to interact
+with that circuit. We learned that some pins can be programmed to turn connected devices on and off, and
+that PWM lets us control \textbf{how bright} an LED is, not only whether it is on. We also learned that
+an LDR plus a resistor makes a voltage divider the microcontroller can measure, and that connecting an
+LED in a circuit always requires adding a resistor in series to prevent burning out the components.
 
 \section{Possible Extensions}
-% TODO: Add extension ideas
+If you want to do some experimentation, try these:
+
+\begin{itemize}
+    \item Swap the mapping so the LED is a \textbf{daytime indicator} (brighter when the room is brighter).
+    Hint: use \texttt{duty = level * PWM\_MAX // ADC\_MAX} instead of subtracting from \texttt{ADC\_MAX}.
+    \item Add \texttt{LIGHT\_MIN} and \texttt{LIGHT\_MAX} constants from the numbers you printed, then
+    scale the reading so covering and uncovering the sensor uses the full dim-to-bright PWM range.
+    \item Slow the loop (\texttt{time.sleep}) or print less often if the serial console is too noisy.
+\end{itemize}

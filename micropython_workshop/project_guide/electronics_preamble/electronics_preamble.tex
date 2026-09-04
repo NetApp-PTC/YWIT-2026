@@ -1,7 +1,7 @@
 \chapter{Electronics Essentials}
 Electronics is a fascinating world. This beginner's guide will introduce you to the essential
 components and tools you'll need to start building your own simple circuits. We'll cover the
-basics of breadboards, LEDs, buttons, resistors, and jumper cables. You should feel free to
+basics of breadboards, LEDs, light sensors (LDRs), buttons, resistors, and jumper cables. You should feel free to
 explore on your own as well using the components in your kit. While this guide will be useful,
 it is not even close to everything you'll need to know. There is always more to learn and if
 electronics interests you, there are lots of online tutorials as well as formal education to
@@ -101,6 +101,17 @@ You can use a resistor color code chart to decode the value.
 \centering
     \maybeincludegraphics[width=.8\linewidth]{electronics_preamble/resistor_illustration.png}
 \end{figure}
+
+\section{LDRs: Sensing Light}
+\subsection{What is an LDR?}
+An LDR (light-dependent resistor), also called a photoresistor, is a resistor whose resistance
+changes with light. More light typically means lower resistance; covering it with your hand means
+higher resistance. Unlike an LED, an LDR has no polarity \- either orientation is fine.
+
+\subsection{Using an LDR with a microcontroller}
+A microcontroller pin measures voltage, not resistance directly. Pair the LDR with a fixed resistor
+to make a voltage divider, then connect the middle of that divider to an analog input pin. As the
+LDR's resistance changes, the voltage at the middle changes, and your program can read it as a number.
 
 \section{Safety Tips:}
 \begin{itemize}
