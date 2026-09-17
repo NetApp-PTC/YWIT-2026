@@ -23,6 +23,44 @@ Once you do this and open a .tex file (any of them), there will be a green play 
 the top right of the editor. The first time it will download the docker image and then build
 it (takes a few minutes). Subsequent builds are pretty fast.
 
+If you use podman instead of docker, you can build the guide straight from the command line
+with the same TeX Live image:
+
+```sh
+cd micropython_workshop/project_guide
+podman run --rm --userns=keep-id -v "$PWD":/work:rw -w /work \
+  registry.gitlab.com/islandoftex/images/texlive:latest \
+  latexmk -pdf -interaction=nonstopmode -halt-on-error project_guide.tex
+```
+
+The first run pulls the image (it is about 6GB), after which builds take a few seconds.
+The `--userns=keep-id` flag keeps the generated files owned by you rather than by root.
+
+#### Regenerating the Breadboard Diagrams
+The step-by-step breadboard wiring diagrams under `project_guide/images/` are generated
+rather than drawn by hand. The project `.tex` file is the single source of truth for hole
+coordinates. At the first mention of a coordinate, use `\bbhole{name}{coordinate}`; it prints
+the coordinate in bold and gives it a stable name for the diagram generator. Use `\bbref{name}`
+to repeat that coordinate elsewhere in the text without storing it again. For example:
+
+```tex
+Connect \bbhole{jumper.led.start}{J7} to \bbhole{jumper.led.end}{E16}.
+Check the jumper from \bbref{jumper.led.start} to \bbref{jumper.led.end}.
+```
+
+`project_guide/tools/breadboard_diagrams.py` reads the `\bbhole` definitions directly from
+the project text. After changing a coordinate there, regenerate the diagrams with:
+
+```sh
+cd micropython_workshop/project_guide
+python3 tools/breadboard_diagrams.py
+```
+
+It needs `rsvg-convert` to turn the generated SVG into PNG (`brew install librsvg` on macOS,
+or `apt install librsvg2-bin` on Debian/Ubuntu). The script refuses to draw a jumper wire whose
+arc would pass across the microcontroller's body, which catches wiring steps that call for a
+hole the seated module physically covers.
+
 #### Flashing the Microcontroller Image
 If you want to flash a microcontroller with the exact version of all of the software that was used
 here, you can use [esptool](https://docs.espressif.com/projects/esptool/en/latest/esp32c3/esptool/index.html)

@@ -278,3 +278,4 @@ TSWLatexianTemp*
 #*Notes.bib
 
 .DS_Store
+__pycache__/

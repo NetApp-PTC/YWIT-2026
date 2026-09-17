@@ -92,6 +92,22 @@
   }%
 }
 
+% Breadboard coordinates. \bbhole defines a named coordinate at its first use
+% and prints it in bold; \bbref prints that same coordinate again later. The
+% diagram generator reads only the \bbhole definitions from the project text.
+\newcommand{\bbhole}[2]{%
+  \expandafter\gdef\csname bbhole@#1\endcsname{#2}%
+  \textbf{#2}%
+}
+\newcommand{\bbref}[1]{%
+  \ifcsname bbhole@#1\endcsname
+    \textbf{\csname bbhole@#1\endcsname}%
+  \else
+    \PackageError{project-guide}{Undefined breadboard hole `#1'}%
+      {Define it first with \string\bbhole\string{#1\string}\string{coordinate\string}.}%
+  \fi
+}
+
 \begin{document}
 
 % Include the title page PDF if it exists; skip gracefully during CI when not yet present

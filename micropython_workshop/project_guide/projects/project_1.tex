@@ -13,7 +13,7 @@ brightens an LED as you cover and uncover a light sensor. Cover the sensor with 
 LED should get brighter---like a night light.
 \begin{figure}[H]
 \centering
-    \maybeincludegraphics[width=.6\linewidth]{project_1/success!.jpg}
+    \maybeincludegraphics[width=.6\linewidth]{project_1/success.jpg}
     \caption{The end result should look something like this}
 \end{figure}
 
@@ -52,28 +52,29 @@ and a light sensor made from an LDR and a 10\si{\kilo\ohm} resistor.
 \subsubsection{Attach the microcontroller to the breadboard}
 Carefully insert the pins at the bottom of your microcontroller into the breadboard, making sure that the microcontroller is oriented such that:
 \begin{itemize}
-    \item The pin labeled \textbf{5V} is inserted in hole at \textbf{Column H, Row 1} of the breadboard (or \textbf{H1}, for short)
-    \item The pin labeled \textbf{GPIO2} is inserted in hole \textbf{D1} of the breadboard
-    \item The pin labeled \textbf{GPIO20} is inserted in hole \textbf{H7} of the breadboard
-    \item the pin labeled \textbf{GPIO21} is inserted in hole \textbf{D7} of the breadboard
+    \item The pin labeled \textbf{5V} is inserted in hole at \textbf{Column H, Row 1} of the breadboard (or \bbhole{mcu.5v}{H1}, for short)
+    \item The pin labeled \textbf{GPIO2} is inserted in hole \bbhole{mcu.gpio2}{D1} of the breadboard
+    \item The pin labeled \textbf{GPIO20} is inserted in hole \bbhole{mcu.gpio20}{H7} of the breadboard
+    \item the pin labeled \textbf{GPIO21} is inserted in hole \bbhole{mcu.gpio21}{D7} of the breadboard
 \end{itemize}
 You may need to apply more pressure than expected to seat the microcontroller properly in the breadboard. When its over, it should look like this:
 
 \begin{figure}[H]
     \centering
-    \maybeincludegraphics[width=.6\linewidth]{common/microcontroller_seated_in_breadboard.jpg}
+    \maybeincludegraphics[width=.95\linewidth]{common/microcontroller_seated_in_breadboard.png}
     \caption{So far, so good!}
 \end{figure}
 
 \subsubsection{Connect the LED and 220\si{\ohm} resistor}
 Place an LED of your choice (the example image below uses RED) into the breadboard. The longer leg
-should be placed in \textbf{B16} and the shorter leg should be placed in \textbf{B17}. Then place one
-leg of a 220\si{\ohm} resistor (doesn't matter which one) in \textbf{A17} and the other in \textbf{A21}.
+should be placed in \bbhole{led.anode}{B16} and the shorter leg should be placed in
+\bbhole{led.cathode}{B17}. Then place one leg of a 220\si{\ohm} resistor (doesn't matter which one)
+in \bbhole{led-resistor.start}{A17} and the other in \bbhole{led-resistor.end}{A21}.
 
 You should be left with something that looks like this:
 \begin{figure}[H]
     \centering
-    \maybeincludegraphics[width=.55\linewidth]{project_1/led_placed.jpg}
+    \maybeincludegraphics[width=.95\linewidth]{project_1/led_placed.png}
     \caption{The LED and its current-limiting resistor are placed.}
 \end{figure}
 
@@ -86,8 +87,9 @@ You should be left with something that looks like this:
 
 \subsubsection{Connect the LDR and 10\si{\kilo\ohm} resistor}
 An LDR (light-dependent resistor) has no polarity---either orientation is fine. Place one leg in
-\textbf{B10} and the other in \textbf{B11}. Then place one leg of a 10\si{\kilo\ohm} resistor in
-\textbf{A10} and the other in \textbf{A14}.
+\bbhole{ldr.first}{B10} and the other in \bbhole{ldr.second}{B11}. Then place one leg of a
+10\si{\kilo\ohm} resistor in \bbhole{ldr-resistor.start}{A10} and the other in
+\bbhole{ldr-resistor.end}{A14}.
 
 The LDR and the 10\si{\kilo\ohm} resistor share row 10. Together they form a \textbf{voltage divider}:
 the microcontroller will measure the voltage at that shared row, which changes as the LDR sees more or
@@ -95,28 +97,33 @@ less light.
 
 \begin{figure}[H]
     \centering
-    \maybeincludegraphics[width=.55\linewidth]{project_1/components_placed.jpg}
+    \maybeincludegraphics[width=.95\linewidth]{project_1/components_placed.png}
     \caption{All of the components except for the jumper wires are now placed.}
 \end{figure}
 
 \subsubsection{Connect the necessary jumper wires}
 \begin{itemize}
-    \item Place one end of a red jumper wire into hole \textbf{J7} of the breadboard and the other end into
-    \textbf{E16}. This connects \textbf{GPIO 20} to the LED. The program will use PWM on this pin to set brightness.
-    \item Using a black jumper wire, place one end of the wire into hole \textbf{J2} of the breadboard and the other
-    end into \textbf{E21}. This provides a ground path for the LED through the 220\si{\ohm} resistor.
-    \item Place one end of a jumper wire into hole \textbf{E1} and the other end into \textbf{E10}. This connects
-    \textbf{GPIO 2} (the analog input) to the LDR / 10\si{\kilo\ohm} junction.
-    \item Place one end of a jumper wire into hole \textbf{J3} and the other end into \textbf{E11}. This provides
-    \textbf{3.3} volts to the other side of the LDR.
-    \item Using a black jumper wire, place one end into hole \textbf{I2} and the other end into \textbf{E14}.
+    \item Place one end of a red jumper wire into hole \bbhole{jumper.led.start}{J7} of the breadboard and the
+    other end into \bbhole{jumper.led.end}{E16}. This connects \textbf{GPIO 20} to the LED. The program will
+    use PWM on this pin to set brightness.
+    \item Using a black jumper wire, place one end of the wire into hole
+    \bbhole{jumper.led-ground.start}{J2} of the breadboard and the other end into
+    \bbhole{jumper.led-ground.end}{E21}. This provides a ground path for the LED through the
+    220\si{\ohm} resistor.
+    \item Place one end of a jumper wire into hole \bbhole{jumper.sensor.start}{C1} and the other end into
+    \bbhole{jumper.sensor.end}{E10}. This connects \textbf{GPIO 2} (the analog input) to the LDR /
+    10\si{\kilo\ohm} junction.
+    \item Place one end of a jumper wire into hole \bbhole{jumper.ldr-power.start}{J3} and the other end into
+    \bbhole{jumper.ldr-power.end}{E11}. This provides \textbf{3.3} volts to the other side of the LDR.
+    \item Using a black jumper wire, place one end into hole \bbhole{jumper.ldr-ground.start}{I2} and the
+    other end into \bbhole{jumper.ldr-ground.end}{E14}.
     This provides a ground path for the 10\si{\kilo\ohm} resistor.
 \end{itemize}
 
 You should be left with something that looks like this:
 \begin{figure}[H]
     \centering
-    \maybeincludegraphics[width=.55\linewidth]{project_1/wired_up.jpg}
+    \maybeincludegraphics[width=.95\linewidth]{project_1/wired_up.png}
     \caption{I'm absolutely POSITIVE I connected everything correctly!}
 \end{figure}
 
@@ -161,11 +168,14 @@ You can stop the script by pressing the red stop button located where the blue p
 \begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!50!black]
     \textbf{If something does not work:}
     \begin{itemize}
-        \item If the LED never lights, check LED polarity (longer leg toward GPIO 20 / hole B16), the
-        220\si{\ohm} resistor, and the jumper from \textbf{J7} to \textbf{E16}.
+        \item If the LED never lights, check LED polarity (longer leg toward GPIO 20 / hole
+        \bbref{led.anode}), the
+        220\si{\ohm} resistor, and the jumper from \bbref{jumper.led.start} to \bbref{jumper.led.end}.
         \item If the LED lights but does not change when you cover the sensor, check the LDR divider:
-        GPIO 2 (\textbf{E1} to \textbf{E10}), 3.3V (\textbf{J3} to \textbf{E11}), and ground (\textbf{I2}
-        to \textbf{E14}). Watch the printed numbers---if they never move, the sensor wiring is the problem.
+        GPIO 2 (\bbref{jumper.sensor.start} to \bbref{jumper.sensor.end}), 3.3V
+        (\bbref{jumper.ldr-power.start} to \bbref{jumper.ldr-power.end}), and ground
+        (\bbref{jumper.ldr-ground.start} to \bbref{jumper.ldr-ground.end}). Watch the printed
+        numbers---if they never move, the sensor wiring is the problem.
         \item Classroom lighting varies. If the LED looks stuck bright or stuck dim, cover the LDR fully
         with your hand, then uncover it, and compare the two printed \texttt{level} values.
     \end{itemize}
