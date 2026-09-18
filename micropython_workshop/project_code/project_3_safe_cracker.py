@@ -1,4 +1,6 @@
 """
+Project 3: Safe Cracker
+
 Safe Cracker — dial a secret combination using a rotary encoder.
 Spin to select digits 0-9; audio hints get warmer as you approach the target.
 Press the encoder button to lock in each digit.
@@ -130,6 +132,7 @@ def setup_components():
     DebouncedButton(PIN_SW, on_enter)
 
 
+print("Project 3: Safe Cracker")
 setup_components()
 new_game()
 

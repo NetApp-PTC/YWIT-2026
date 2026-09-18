@@ -1,5 +1,5 @@
 """
-Project 3: Red Light, Green Light
+Project 2: Red Light, Green Light
 
 Single-player reflex game:
 - Press during GREEN to score and record reaction time.
@@ -44,6 +44,7 @@ windows_done = 0
 best_reaction_ms = None
 phase_deadline_ms = 0
 green_started_ms = 0
+
 
 def set_all(color):
     for i in range(NUM_PIXELS):
@@ -186,7 +187,7 @@ def tick_state(now_ms):
         enter_red(now_ms)
 
 
-print("Project 3: Red Light, Green Light")
+print("Project 2: Red Light, Green Light")
 print("Button on GPIO21 (active-low with pull-up), LEDs on GPIO20")
 print("Press button to start.")
 show_idle()

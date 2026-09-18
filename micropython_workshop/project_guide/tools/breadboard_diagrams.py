@@ -136,16 +136,18 @@ PROJECT_GUIDE_DIR = Path(__file__).resolve().parent.parent
 # one shared file that every diagram is drawn against.
 COMMON_SOURCE = PROJECT_GUIDE_DIR / "common" / "microcontroller_seating.tex"
 
+COORD_RE = r"(?:[A-J]|top\+|top-|bot\+|bot-)(?:[1-9]|[12][0-9]|30)"
+
 BBHOLE_RE = re.compile(
     r"\\bbhole\s*\{(?P<name>[A-Za-z0-9_.-]+)\}\s*"
-    r"\{(?P<coordinate>[A-J](?:[1-9]|[12][0-9]|30))\}"
+    r"\{(?P<coordinate>" + COORD_RE + r")\}"
 )
 BBREF_RE = re.compile(r"\\bbref\s*\{(?P<name>[A-Za-z0-9_.-]+)\}")
 CONNECTION_RE = re.compile(
     r"\\connectionrow\s*\{(?P<name>[A-Za-z0-9_.-]+)\}"
     r"\s*\{[^{}]*\}\s*\{(?P<xiao>[^{}]*)\}"
-    r"\s*\{(?P<start>[A-J](?:[1-9]|[12][0-9]|30))\}"
-    r"\s*\{(?P<end>[A-J](?:[1-9]|[12][0-9]|30))\}"
+    r"\s*\{(?P<start>" + COORD_RE + r")\}"
+    r"\s*\{(?P<end>" + COORD_RE + r")\}"
 )
 
 # A breadboard row is split into two independent nodes by the centre channel.
@@ -189,6 +191,10 @@ PIXEL_MODULE_COORDINATES = frozenset(
 
 BUTTON_COORDINATES = frozenset({"button.side-a", "button.side-b"})
 
+SPEAKER_COORDINATES = frozenset(
+    {"speaker.lead.signal", "speaker.lead.ground"}
+)
+
 ENCODER_COORDINATES = frozenset(
     {
         "encoder.header.clk",
@@ -199,8 +205,27 @@ ENCODER_COORDINATES = frozenset(
     }
 )
 
-SPEAKER_COORDINATES = frozenset(
-    {"speaker.lead.signal", "speaker.lead.ground"}
+PROJECT_4_COORDINATES = frozenset(
+    PIXEL_MODULE_COORDINATES
+    | SPEAKER_COORDINATES
+    | {
+        "pad0.side-a",
+        "pad0.side-b",
+        "pad1.side-a",
+        "pad1.side-b",
+        "pad2.side-a",
+        "pad2.side-b",
+        "jumper.pad0-ground.start",
+        "jumper.pad0-ground.end",
+        "jumper.pad1-ground.start",
+        "jumper.pad1-ground.end",
+        "jumper.pad2-ground.start",
+        "jumper.pad2-ground.end",
+        "jumper.pixels-ground.start",
+        "jumper.pixels-ground.end",
+        "jumper.speaker-ground.start",
+        "jumper.speaker-ground.end",
+    }
 )
 
 COORDINATES: dict[str, str] = {}
@@ -343,7 +368,16 @@ def row_x(row: int) -> float:
 
 
 def hole(coord: str) -> tuple[float, float]:
-    """Return the centre of a breadboard hole such as "B16" or "J7"."""
+    """Return the centre of a breadboard hole such as "B16", "J7", or "top-2"."""
+    coord = coord.strip()
+    if coord.startswith(("top+", "top-", "bot+", "bot-")):
+        rail = coord[:4]
+        row = int(coord[4:])
+        if not 1 <= row <= ROWS:
+            raise ValueError(f"rail row out of range in {coord!r}")
+        if rail not in RAIL_Y:
+            raise ValueError(f"unknown breadboard rail in {coord!r}")
+        return row_x(row), RAIL_Y[rail]
     column = coord[0].upper()
     row = int(coord[1:])
     if column not in COLUMN_Y:
@@ -654,7 +688,7 @@ def draw_resistor(d: Drawing, end_a: str, end_b: str, value: str) -> None:
     d.add("</g>")
 
 
-def draw_pixel_module(d: Drawing) -> None:
+def draw_pixel_module(d: Drawing, pcb_row: int = 16) -> None:
     """The 3-pixel WS2812B module, drawn face-on in the margin above the board.
 
     Its right-angle header holds the PCB upright once seated, so a plan view
@@ -667,7 +701,7 @@ def draw_pixel_module(d: Drawing) -> None:
         ("pixels.header.data", "DI"),
         ("pixels.header.ground", "GND"),
     )
-    pcb_x, pcb_y = row_x(16), -180.0
+    pcb_x, pcb_y = row_x(pcb_row), -180.0
     pcb_w, pcb_h = 13 * PITCH, 96.0
     pin_x = pcb_x - 26
     pad_ys = [pcb_y + 24 + index * PITCH for index in range(3)]
@@ -981,7 +1015,14 @@ def draw_speaker(d: Drawing) -> None:
         )
 
 
-def draw_tactile_button(d: Drawing, side_a: str, side_b: str) -> None:
+def draw_tactile_button(
+    d: Drawing,
+    side_a: str,
+    side_b: str,
+    label: str | None = "6 \u00d7 6 mm button",
+    label_offset_x: float = 94,
+    anchor: str = "start",
+) -> None:
     """A 6 x 6 mm tactile switch seated with all four legs in one half of the board.
 
     The legs sit on a rectangle three holes across the columns and two along the
@@ -1025,16 +1066,17 @@ def draw_tactile_button(d: Drawing, side_a: str, side_b: str) -> None:
     for leg_x, leg_y in legs:
         d.add(f'<circle cx="{leg_x:.2f}" cy="{leg_y:.2f}" r="2.6" fill="#17171a" opacity="0.6"/>')
 
-    # The empty centre channel is the one place a label can sit uncluttered.
-    d.text(
-        centre_x + 94,
-        CHANNEL_TOP_Y + 32,
-        "6 \u00d7 6 mm button",
-        size=12,
-        fill=LABEL_GREY,
-        anchor="start",
-        weight="bold",
-    )
+    if label:
+        # The empty centre channel is the one place a label can sit uncluttered.
+        d.text(
+            centre_x + label_offset_x,
+            CHANNEL_TOP_Y + 32,
+            label,
+            size=12,
+            fill=LABEL_GREY,
+            anchor=anchor,
+            weight="bold",
+        )
 
 
 def _quad_point(p0, c, p1, t):
@@ -1229,7 +1271,7 @@ def _pixel_module_jumpers(d: Drawing, power_colour: str) -> None:
     )
 
 
-def diagram_project_3_wiring() -> Drawing:
+def diagram_project_2_wiring() -> Drawing:
     d = Drawing(MARGIN_T_MODULE)
     draw_breadboard(d)
     draw_xiao(d)
@@ -1277,7 +1319,7 @@ def diagram_project_3_wiring() -> Drawing:
     return d
 
 
-def diagram_project_4_wiring() -> Drawing:
+def diagram_project_3_wiring() -> Drawing:
     d = Drawing(MARGIN_T, MARGIN_B_ENCODER)
     draw_breadboard(d)
     draw_xiao(d)
@@ -1331,6 +1373,157 @@ def diagram_project_4_wiring() -> Drawing:
     return d
 
 
+def diagram_project_4_wiring() -> Drawing:
+    d = Drawing(MARGIN_T_MODULE, MARGIN_B_ENCODER)
+    draw_breadboard(d)
+    draw_xiao(d)
+
+    draw_tactile_button(
+        d,
+        named_hole("pad0.side-a"),
+        named_hole("pad0.side-b"),
+        "Pad 0",
+        label_offset_x=0,
+        anchor="middle",
+    )
+    draw_tactile_button(
+        d,
+        named_hole("pad1.side-a"),
+        named_hole("pad1.side-b"),
+        "Pad 1",
+        label_offset_x=0,
+        anchor="middle",
+    )
+    draw_tactile_button(
+        d,
+        named_hole("pad2.side-a"),
+        named_hole("pad2.side-b"),
+        "Pad 2",
+        label_offset_x=0,
+        anchor="middle",
+    )
+
+    # MCU to Ground rail
+    draw_jumper(
+        d,
+        named_hole("jumper.mcu-ground.start"),
+        named_hole("jumper.mcu-ground.end"),
+        WIRE_BLACK,
+        (row_x(2), 75),
+    )
+
+    # Pad signal jumpers
+    draw_jumper(
+        d,
+        named_hole("jumper.pad0-signal.start"),
+        named_hole("jumper.pad0-signal.end"),
+        WIRE_YELLOW,
+        (row_x(8), COLUMN_Y["C"] + 15),
+    )
+    draw_jumper(
+        d,
+        named_hole("jumper.pad1-signal.start"),
+        named_hole("jumper.pad1-signal.end"),
+        WIRE_GREEN,
+        (row_x(10), COLUMN_Y["B"] + 15),
+    )
+    draw_jumper(
+        d,
+        named_hole("jumper.pad2-signal.start"),
+        named_hole("jumper.pad2-signal.end"),
+        "#7657a8",
+        (row_x(12), COLUMN_Y["A"] + 15),
+    )
+
+    # Ground jumpers from top ground rail to each pad
+    draw_jumper(
+        d,
+        named_hole("jumper.pad0-ground.start"),
+        named_hole("jumper.pad0-ground.end"),
+        WIRE_BLACK,
+        (row_x(12), 160),
+    )
+    draw_jumper(
+        d,
+        named_hole("jumper.pad1-ground.start"),
+        named_hole("jumper.pad1-ground.end"),
+        WIRE_BLACK,
+        (row_x(16), 160),
+    )
+    draw_jumper(
+        d,
+        named_hole("jumper.pad2-ground.start"),
+        named_hole("jumper.pad2-ground.end"),
+        WIRE_BLACK,
+        (row_x(20), 160),
+    )
+
+    # WS2812B Power and Data
+    draw_jumper(
+        d,
+        named_hole("jumper.pixels-power.start"),
+        named_hole("jumper.pixels-power.end"),
+        WIRE_ORANGE,
+        (row_x(12), -20),
+    )
+    draw_jumper(
+        d,
+        named_hole("jumper.pixels-data.start"),
+        named_hole("jumper.pixels-data.end"),
+        WIRE_GREEN,
+        (row_x(15), 10),
+    )
+    draw_jumper(
+        d,
+        named_hole("jumper.pixels-ground.start"),
+        named_hole("jumper.pixels-ground.end"),
+        WIRE_BLACK,
+        (row_x(24), 75),
+    )
+
+    # Speaker signal jumper
+    draw_jumper(
+        d,
+        named_hole("jumper.speaker-signal.start"),
+        named_hole("jumper.speaker-signal.end"),
+        WIRE_RED,
+        (row_x(15), -50),
+    )
+
+    # Speaker ground jumper from top rail
+    draw_jumper(
+        d,
+        named_hole("jumper.speaker-ground.start"),
+        named_hole("jumper.speaker-ground.end"),
+        WIRE_BLACK,
+        (row_x(28), 160),
+    )
+
+    draw_pixel_module(d, pcb_row=18)
+    draw_speaker(d)
+
+    # Callouts
+    mcu_gnd = named_hole("jumper.mcu-ground.start")
+    power = named_hole("jumper.pixels-power.start")
+    speaker_sig = named_hole("jumper.speaker-signal.start")
+    data = named_hole("jumper.pixels-data.start")
+
+    callout(d, mcu_gnd, f"GND \u00b7 {mcu_gnd}", (26, -30), colour=WIRE_BLACK, anchor="start")
+    callout(d, power, f"3.3 V \u00b7 {power}", (160, -30), colour="#c25c00", anchor="start")
+    callout(d, speaker_sig, f"GPIO 10 \u00b7 {speaker_sig}", (310, -30), colour=WIRE_RED, anchor="start")
+    callout(d, data, f"GPIO 20 \u00b7 {data}", (470, -30), colour=WIRE_GREEN, anchor="start")
+
+    pad2_sig = named_hole("jumper.pad2-signal.start")
+    pad1_sig = named_hole("jumper.pad1-signal.start")
+    pad0_sig = named_hole("jumper.pad0-signal.start")
+
+    callout(d, pad2_sig, f"GPIO 6 \u00b7 {pad2_sig}", (26, LABEL_Y_BOTTOM), colour="#7657a8", anchor="start")
+    callout(d, pad1_sig, f"GPIO 7 \u00b7 {pad1_sig}", (160, LABEL_Y_BOTTOM), colour=WIRE_GREEN, anchor="start")
+    callout(d, pad0_sig, f"GPIO 21 \u00b7 {pad0_sig}", (294, LABEL_Y_BOTTOM), colour=ACCENT_DARK_YELLOW, anchor="start")
+
+    return d
+
+
 def diagram_project_5_wiring() -> Drawing:
     d = Drawing(MARGIN_T_MODULE)
     draw_breadboard(d)
@@ -1367,14 +1560,19 @@ PROJECTS = {
             "project_1/wired_up.png": diagram_wired_up,
         },
     ),
+    2: ProjectDiagrams(
+        source=PROJECT_GUIDE_DIR / "projects" / "project_2.tex",
+        coordinates=PIXEL_MODULE_COORDINATES | BUTTON_COORDINATES,
+        outputs={"project_2/wiring.png": diagram_project_2_wiring},
+    ),
     3: ProjectDiagrams(
         source=PROJECT_GUIDE_DIR / "projects" / "project_3.tex",
-        coordinates=PIXEL_MODULE_COORDINATES | BUTTON_COORDINATES,
+        coordinates=ENCODER_COORDINATES | SPEAKER_COORDINATES,
         outputs={"project_3/wiring.png": diagram_project_3_wiring},
     ),
     4: ProjectDiagrams(
         source=PROJECT_GUIDE_DIR / "projects" / "project_4.tex",
-        coordinates=ENCODER_COORDINATES | SPEAKER_COORDINATES,
+        coordinates=PROJECT_4_COORDINATES,
         outputs={"project_4/wiring.png": diagram_project_4_wiring},
     ),
     5: ProjectDiagrams(
