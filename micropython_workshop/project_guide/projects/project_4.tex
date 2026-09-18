@@ -34,7 +34,7 @@ Over the course of this project, you will:
 \section{Components}
 \begin{itemize}
     \item Seeed XIAO ESP32-C3 microcontroller
-    \item 3x WS2812B addressable RGB LEDs (strip segment with right-angle header)
+    \item 3-pixel WS2812B LED strip
     \item 3x Tactile pushbuttons ($6\times6$\,mm)
     \item 1x Treedix 1W 8\si{\ohm} mini speaker (with breadboard-friendly Dupont leads)
     \item Breadboard
@@ -66,8 +66,8 @@ Because we have multiple components requiring a ground connection, we connect th
 \end{center}
 
 \subsubsection{WS2812B LED strip placement and wiring}
-The 3-pixel WS2812B strip has a 3-pin right-angle header at its \textbf{DI} (Data In) end.
-Insert the strip into row \textbf{F} (rows 22--24) on the right side of the breadboard so it is
+The LED strip has a right-angle header so it stands upright once seated.
+Insert those three pins into row \textbf{F} (rows 22--24) on the right side of the breadboard so it is
 clearly visible and not obscured by jumper wires:
 \textbf{5V} into \bbhole{pixels.header.power}{F22},
 \textbf{DI} into \bbhole{pixels.header.data}{F23}, and
@@ -79,8 +79,8 @@ Then connect the jumper wires:
     \hline
     \textbf{WS2812B pin} & \textbf{Source / Pin} & \textbf{Jumper holes} \\
     \hline
-    \connectionrow{pixels-power}{5V (power)}{3V3}{I3}{J22}
-    \connectionrow{pixels-data}{DI (data in)}{GPIO 20}{I7}{J23}
+    \connectionrow{pixels-power}{5V}{3V3}{I3}{J22}
+    \connectionrow{pixels-data}{DI}{GPIO 20}{I7}{J23}
     WS2812B ground & Top GND rail & \bbhole{jumper.pixels-ground.start}{top-24} $\rightarrow$ \bbhole{jumper.pixels-ground.end}{J24} \\
     \hline
 \end{tabular}

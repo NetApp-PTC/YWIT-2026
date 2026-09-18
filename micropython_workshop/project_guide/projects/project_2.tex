@@ -28,7 +28,7 @@ window counts as a miss.
 \section{Components}
 \begin{itemize}
     \item Seeed XIAO ESP32-C3 microcontroller
-    \item 3x WS2812B addressable RGB LEDs wired in series
+    \item 3-pixel WS2812B LED strip
     \item 1x pushbutton
     \item Breadboard
     \item Jumper wires
@@ -42,8 +42,8 @@ Before starting Project 2, remove components and wires from the previous project
 \subsection{Creating the circuit}
 
 \subsubsection{WS2812B strip wiring}
-The strip has a right-angle header soldered to its \textbf{DI} end, so it stands upright once
-seated. Push those three pins into the top half of the board: \textbf{5V} into
+The LED strip has a right-angle header so it stands upright once seated.
+Push those three pins into the top half of the board: \textbf{5V} into
 \bbhole{pixels.header.power}{J12}, \textbf{DI} into \bbhole{pixels.header.data}{J13}, and
 \textbf{GND} into \bbhole{pixels.header.ground}{J14}. Then add these connections:
 \begin{center}
@@ -51,8 +51,8 @@ seated. Push those three pins into the top half of the board: \textbf{5V} into
     \hline
     \textbf{WS2812B pin} & \textbf{XIAO pin} & \textbf{Jumper holes} \\
     \hline
-    \connectionrow{pixels-power}{5V (power in)}{3V3}{I3}{I12}
-    \connectionrow{pixels-data}{DI (first LED)}{GPIO 20}{I7}{I13}
+    \connectionrow{pixels-power}{5V}{3V3}{I3}{I12}
+    \connectionrow{pixels-data}{DI}{GPIO 20}{I7}{I13}
     \connectionrow{pixels-ground}{GND}{GND}{I2}{I14}
     \hline
 \end{tabular}
@@ -107,7 +107,7 @@ During gameplay:
 \subsection{Hardware test checklist}
 Use this checklist to confirm your circuit and code are working:
 \begin{enumerate}
-    \item Confirm LED order on your strip: first LED (DI side) is red, middle is yellow, last is green.
+    \item Confirm LED order on your strip: the LED closest to the header is red, the middle is yellow, and the far end is green.
     \item Press button from idle state: yellow wait indicator transitions into red/green gameplay cycling.
     \item Wait for GREEN (green LED only) and press quickly: score increases and a reaction time is printed.
     \item Do not press during RED or YELLOW: pressing before green ends the round immediately.

@@ -22,7 +22,7 @@ By the end, you will have a complete wireless ``mood lamp'' that works without i
 
 \begin{itemize}
     \item Seeed XIAO ESP32-C3 microcontroller
-    \item 3-pixel WS2812B LED segment (or 3 chained WS2812B LEDs)
+    \item 3-pixel WS2812B LED strip
     \item Breadboard
     \item Jumper wires
 \end{itemize}
@@ -32,8 +32,8 @@ By the end, you will have a complete wireless ``mood lamp'' that works without i
 \subsection{Creating the circuit}
 Before starting, remove components from earlier projects that are no longer needed.
 
-The strip has a right-angle header soldered to its \textbf{DI} end, so it stands upright once
-seated. Push those three pins into the top half of the board: \textbf{5V} into
+The LED strip has a right-angle header so it stands upright once seated.
+Push those three pins into the top half of the board: \textbf{5V} into
 \bbhole{pixels.header.power}{J12}, \textbf{DI} into \bbhole{pixels.header.data}{J13}, and
 \textbf{GND} into \bbhole{pixels.header.ground}{J14}. Then add these connections:
 \begin{center}
@@ -42,18 +42,11 @@ seated. Push those three pins into the top half of the board: \textbf{5V} into
     \textbf{WS2812B pin} & \textbf{XIAO pin} & \textbf{Jumper holes} \\
     \hline
     \connectionrow{pixels-power}{5V}{5V}{I1}{I12}
-    \connectionrow{pixels-data}{DI (data in)}{GPIO 20}{I7}{I13}
+    \connectionrow{pixels-data}{DI}{GPIO 20}{I7}{I13}
     \connectionrow{pixels-ground}{GND}{GND}{I2}{I14}
     \hline
 \end{tabular}
 \end{center}
-
-Make sure your data wire is connected to the side labeled ``DI'' (not ``DO'').
-
-\begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!50!black]
-    \textbf{Important:} Data direction matters. WS2812B LEDs are one-way devices.
-    If DI/DO are swapped, the LEDs will not respond.
-\end{tcolorbox}
 
 \begin{figure}[H]
     \centering
