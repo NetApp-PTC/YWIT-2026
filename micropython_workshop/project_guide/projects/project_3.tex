@@ -48,12 +48,24 @@ Wire your 3-pixel WS2812B chain as follows:
     \hline
     \textbf{WS2812B Pin} & \textbf{XIAO GPIO} & \textbf{XIAO Label} \\
     \hline
-    DIN (first LED) & GPIO 20 & D7 \\
-    VCC             & 3V3 & 3V3 \\
-    GND             & GND & GND \\
+    \connectionrow{pixels.data}{DI (first LED)}{GPIO 20}{D7}
+    \connectionrow{pixels.power}{5V (power in)}{3V3}{3V3}
+    \connectionrow{pixels.ground}{GND}{GND}{GND}
     \hline
 \end{tabular}
 \end{center}
+
+The strip has a right-angle header soldered to its \textbf{DI} end, so it stands upright once
+seated. Push those three pins into the top half of the board: \textbf{5V} into
+\bbhole{pixels.header.power}{J12}, \textbf{DI} into \bbhole{pixels.header.data}{J13}, and
+\textbf{GND} into \bbhole{pixels.header.ground}{J14}. Then run three jumper wires:
+\begin{itemize}
+    \item \bbhole{jumper.pixels-power.start}{I3} to \bbhole{jumper.pixels-power.end}{I12}, which
+    feeds 3.3 volts to the pin marked 5V
+    \item \bbhole{jumper.pixels-data.start}{I7} to \bbhole{jumper.pixels-data.end}{I13}, which
+    connects \textbf{GPIO 20} to \textbf{DI}
+    \item \bbhole{jumper.pixels-ground.start}{I2} to \bbhole{jumper.pixels-ground.end}{I14}
+\end{itemize}
 
 \subsubsection{Button wiring}
 Wire a pushbutton between GPIO21 and GND:
@@ -62,13 +74,31 @@ Wire a pushbutton between GPIO21 and GND:
     \hline
     \textbf{Button Pin} & \textbf{XIAO GPIO} & \textbf{XIAO Label} \\
     \hline
-    One side & GPIO 21 & D6 \\
-    Other side & GND & GND \\
+    \connectionrow{button.signal}{One side}{GPIO 21}{D6}
+    \connectionrow{button.ground}{Other side}{GND}{GND}
     \hline
 \end{tabular}
 \end{center}
 
+Press the button into the bottom edge of the board so that its legs reach from column \textbf{A}
+up to column \textbf{D}. One pair of legs goes into \bbhole{button.side-a}{A12} and \textbf{D12},
+and the other pair two rows along into \bbhole{button.side-b}{A14} and \textbf{D14}. The two legs
+of a pair are already joined inside the button, so it is the gap between the two pairs that the
+button closes. Then run two more jumper wires:
+\begin{itemize}
+    \item \bbhole{jumper.button-signal.start}{C7} to \bbhole{jumper.button-signal.end}{E12}, which
+    connects \textbf{GPIO 21} to one pair of legs
+    \item \bbhole{jumper.button-ground.start}{J2} to \bbhole{jumper.button-ground.end}{E14}, which
+    grounds the other pair
+\end{itemize}
+
 The code enables the internal pull-up resistor, so the pin reads HIGH when idle and LOW when pressed.
+
+\begin{figure}[H]
+    \centering
+    \maybeincludegraphics[width=.9\linewidth]{project_3/wiring.png}
+    \caption{Connect the LED strip and button to the XIAO ESP32-C3.}
+\end{figure}
 
 \subsection{Programming the microcontroller}
 Open the file \texttt{project\_3\_red\_light\_green\_light.py} and run it in the IDE (Chapter \ref{ide}).
@@ -94,7 +124,7 @@ During gameplay:
 \subsection{Hardware test checklist}
 Use this checklist to confirm your circuit and code are working:
 \begin{enumerate}
-    \item Confirm LED order on your strip: first LED (DIN side) is red, middle is yellow, last is green.
+    \item Confirm LED order on your strip: first LED (DI side) is red, middle is yellow, last is green.
     \item Press button from idle state: yellow wait indicator transitions into red/green gameplay cycling.
     \item Wait for GREEN (green LED only) and press quickly: score increases and a reaction time is printed.
     \item Do not press during RED or YELLOW: pressing before green ends the round immediately.

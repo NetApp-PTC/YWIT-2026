@@ -108,6 +108,11 @@
   \fi
 }
 
+% A machine-readable row for pin-to-pin wiring tables. The first argument is
+% a stable connection name used by the diagram generator; the remaining
+% arguments are printed as the table's three visible columns.
+\newcommand{\connectionrow}[4]{#2 & #3 & #4 \\}
+
 \begin{document}
 
 % Include the title page PDF if it exists; skip gracefully during CI when not yet present

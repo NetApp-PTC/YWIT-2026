@@ -6,8 +6,12 @@ prints a coordinate in the PDF and gives it a stable name. This script reads
 those definitions from the .tex file and uses them to draw every component,
 wire, and callout.
 
+Every project is drawn on the same breadboard with the same seated module, so the
+seating coordinates come from common/microcontroller_seating.tex and each project
+contributes only its own components.
+
 Usage:
-    python3 tools/breadboard_diagrams.py [--source projects/project_1.tex]
+    python3 tools/breadboard_diagrams.py [--project 3]
 
 Writes PNG files under project_guide/images/. Requires rsvg-convert
 (brew install librsvg) to rasterize the generated SVG.
@@ -21,6 +25,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -64,8 +70,11 @@ MARGIN_R = 70
 MARGIN_T = 58
 MARGIN_B = 54
 
+# Diagrams showing the upright pixel module need room above the board to draw
+# it face-on, so the top margin is per-diagram rather than fixed.
+MARGIN_T_MODULE = 240
+
 CANVAS_W = BOARD_W + MARGIN_L + MARGIN_R
-CANVAS_H = BOARD_H + MARGIN_T + MARGIN_B
 
 # The single row of callout text above and below the board.
 LABEL_Y_TOP = -38
@@ -94,10 +103,19 @@ SILK = "#9fb4c6"
 LEAD_FILL = "#c4c4c4"
 LEAD_EDGE = "#8d8d8d"
 
+MODULE_PCB = "#16191d"
+MODULE_EDGE = "#05070a"
+LED_BODY = "#f6f4ef"
+LED_LENS = "#eceae4"
+SWITCH_BODY = "#2c3237"
+SWITCH_EDGE = "#14181b"
+SWITCH_CAP = "#4b5157"
+
 WIRE_RED = "#d62828"
 WIRE_BLACK = "#2b2b2b"
 WIRE_YELLOW = "#e3b505"
 WIRE_ORANGE = "#ef7d19"
+WIRE_GREEN = "#1f8a5a"
 
 ACCENT = "#1f6f8b"
 ACCENT_DARK_YELLOW = "#9c7a00"
@@ -109,39 +127,65 @@ PINS_H = ["5V", "GND", "3V3", "IO10", "IO9", "IO8", "IO20"]
 PINS_D = ["IO2", "IO3", "IO4", "IO5", "IO6", "IO7", "IO21"]
 
 PROJECT_GUIDE_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_SOURCE = PROJECT_GUIDE_DIR / "projects" / "project_1.tex"
+
+# Seating the module is identical in every project, so its coordinates live in
+# one shared file that every diagram is drawn against.
+COMMON_SOURCE = PROJECT_GUIDE_DIR / "common" / "microcontroller_seating.tex"
+
 BBHOLE_RE = re.compile(
     r"\\bbhole\s*\{(?P<name>[A-Za-z0-9_.-]+)\}\s*"
     r"\{(?P<coordinate>[A-J](?:[1-9]|[12][0-9]|30))\}"
 )
 BBREF_RE = re.compile(r"\\bbref\s*\{(?P<name>[A-Za-z0-9_.-]+)\}")
+CONNECTION_RE = re.compile(
+    r"\\connectionrow\s*\{(?P<name>[A-Za-z0-9_.-]+)\}"
+    r"\s*\{[^{}]*\}\s*\{[^{}]*\}\s*\{[^{}]*\}"
+)
 
-REQUIRED_COORDINATES = {
-    "mcu.5v",
-    "mcu.gpio2",
-    "mcu.gpio20",
-    "mcu.gpio21",
-    "led.anode",
-    "led.cathode",
-    "led-resistor.start",
-    "led-resistor.end",
-    "ldr.first",
-    "ldr.second",
-    "ldr-resistor.start",
-    "ldr-resistor.end",
-    "jumper.led.start",
-    "jumper.led.end",
-    "jumper.led-ground.start",
-    "jumper.led-ground.end",
-    "jumper.sensor.start",
-    "jumper.sensor.end",
-    "jumper.ldr-power.start",
-    "jumper.ldr-power.end",
-    "jumper.ldr-ground.start",
-    "jumper.ldr-ground.end",
-}
+SEATING_COORDINATES = frozenset(
+    {"mcu.5v", "mcu.gpio2", "mcu.gpio20", "mcu.gpio21"}
+)
+
+PROJECT_1_COORDINATES = frozenset(
+    {
+        "led.anode",
+        "led.cathode",
+        "led-resistor.start",
+        "led-resistor.end",
+        "ldr.first",
+        "ldr.second",
+        "ldr-resistor.start",
+        "ldr-resistor.end",
+        "jumper.led.start",
+        "jumper.led.end",
+        "jumper.led-ground.start",
+        "jumper.led-ground.end",
+        "jumper.sensor.start",
+        "jumper.sensor.end",
+        "jumper.ldr-power.start",
+        "jumper.ldr-power.end",
+        "jumper.ldr-ground.start",
+        "jumper.ldr-ground.end",
+    }
+)
+
+PIXEL_MODULE_COORDINATES = frozenset(
+    {
+        "pixels.header.power",
+        "pixels.header.data",
+        "pixels.header.ground",
+    }
+)
+
+BUTTON_COORDINATES = frozenset({"button.side-a", "button.side-b"})
 
 COORDINATES: dict[str, str] = {}
+
+
+def jumper_holes(connection: str) -> tuple[str, str]:
+    """Map a \\connectionrow name onto the \\bbhole pair that wires it up."""
+    stem = connection.replace(".", "-")
+    return f"jumper.{stem}.start", f"jumper.{stem}.end"
 
 
 def _without_tex_comments(text: str) -> str:
@@ -163,27 +207,46 @@ def _without_tex_comments(text: str) -> str:
     return "\n".join(cleaned)
 
 
-def read_coordinates(source: Path) -> dict[str, str]:
-    """Read and validate all named breadboard coordinates from a TeX file."""
-    text = _without_tex_comments(source.read_text(encoding="utf-8"))
+def read_coordinates(sources: list[Path], required: frozenset[str]) -> dict[str, str]:
+    """Read and validate named breadboard coordinates across several TeX files."""
     coordinates: dict[str, str] = {}
+    origin: dict[str, Path] = {}
+    references: set[str] = set()
+    connections: set[str] = set()
 
-    for match in BBHOLE_RE.finditer(text):
-        name = match.group("name")
-        coordinate = match.group("coordinate")
-        if name in coordinates:
-            raise ValueError(f"{source}: duplicate \\bbhole name {name!r}")
-        coordinates[name] = coordinate
+    for source in sources:
+        text = _without_tex_comments(source.read_text(encoding="utf-8"))
+        for match in BBHOLE_RE.finditer(text):
+            name = match.group("name")
+            if name in coordinates:
+                raise ValueError(
+                    f"{source}: duplicate \\bbhole name {name!r}, already defined "
+                    f"in {origin[name]}"
+                )
+            coordinates[name] = match.group("coordinate")
+            origin[name] = source
+        references |= {match.group("name") for match in BBREF_RE.finditer(text)}
+        connections |= {match.group("name") for match in CONNECTION_RE.finditer(text)}
 
-    missing = sorted(REQUIRED_COORDINATES - coordinates.keys())
+    where = ", ".join(str(source) for source in sources)
+
+    missing = sorted(required - coordinates.keys())
     if missing:
-        raise ValueError(f"{source}: missing \\bbhole definitions: {', '.join(missing)}")
+        raise ValueError(f"{where}: missing \\bbhole definitions: {', '.join(missing)}")
 
-    undefined_refs = sorted(
-        {match.group("name") for match in BBREF_RE.finditer(text)} - coordinates.keys()
-    )
+    undefined_refs = sorted(references - coordinates.keys())
     if undefined_refs:
-        raise ValueError(f"{source}: undefined \\bbref names: {', '.join(undefined_refs)}")
+        raise ValueError(f"{where}: undefined \\bbref names: {', '.join(undefined_refs)}")
+
+    # Every connection listed in a wiring table must have holes to wire it into,
+    # so a table row and its wiring instructions cannot drift apart.
+    for connection in sorted(connections):
+        unwired = [hole for hole in jumper_holes(connection) if hole not in coordinates]
+        if unwired:
+            raise ValueError(
+                f"{where}: \\connectionrow {connection!r} has no holes: "
+                f"missing {', '.join(unwired)}"
+            )
 
     return coordinates
 
@@ -225,7 +288,8 @@ def esc(text: str) -> str:
 class Drawing:
     """Minimal SVG builder."""
 
-    def __init__(self) -> None:
+    def __init__(self, margin_top: int = MARGIN_T) -> None:
+        self.margin_top = margin_top
         self.parts: list[str] = []
         self.defs: list[str] = []
 
@@ -254,12 +318,13 @@ class Drawing:
     def render(self) -> str:
         defs = "\n".join(self.defs)
         body = "\n".join(self.parts)
+        canvas_h = BOARD_H + self.margin_top + MARGIN_B
         return (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{CANVAS_W}" '
-            f'height="{CANVAS_H}" viewBox="0 0 {CANVAS_W} {CANVAS_H}">\n'
+            f'height="{canvas_h}" viewBox="0 0 {CANVAS_W} {canvas_h}">\n'
             f"<defs>\n{defs}\n</defs>\n"
-            f'<rect width="{CANVAS_W}" height="{CANVAS_H}" fill="#ffffff"/>\n'
-            f'<g transform="translate({MARGIN_L},{MARGIN_T})">\n{body}\n</g>\n'
+            f'<rect width="{CANVAS_W}" height="{canvas_h}" fill="#ffffff"/>\n'
+            f'<g transform="translate({MARGIN_L},{self.margin_top})">\n{body}\n</g>\n'
             "</svg>\n"
         )
 
@@ -509,6 +574,149 @@ def draw_resistor(d: Drawing, end_a: str, end_b: str, value: str) -> None:
     d.add("</g>")
 
 
+def draw_pixel_module(d: Drawing) -> None:
+    """The 3-pixel WS2812B module, drawn face-on in the margin above the board.
+
+    Its right-angle header holds the PCB upright once seated, so a plan view
+    would show nothing but the board's edge. Drawing it face-on and running
+    leaders down to its three holes keeps the LEDs and the pad names readable
+    while still saying exactly where it plugs in.
+    """
+    pads = (
+        ("pixels.header.power", "5V"),
+        ("pixels.header.data", "DI"),
+        ("pixels.header.ground", "GND"),
+    )
+    pcb_x, pcb_y = row_x(16), -180.0
+    pcb_w, pcb_h = 13 * PITCH, 96.0
+    pin_x = pcb_x - 26
+    pad_ys = [pcb_y + 24 + index * PITCH for index in range(3)]
+
+    d.text(
+        pcb_x + pcb_w / 2,
+        pcb_y - 14,
+        "3-pixel WS2812B module \u00b7 stands upright in the board",
+        size=13,
+        fill=LABEL_GREY,
+        weight="bold",
+    )
+
+    # Header pins first, so the PCB covers the ends that sit behind it.
+    for pad_y in pad_ys:
+        for width, colour in ((6.5, LEAD_EDGE), (3.6, LEAD_FILL)):
+            d.add(
+                f'<line x1="{pcb_x:.2f}" y1="{pad_y:.2f}" x2="{pin_x:.2f}" '
+                f'y2="{pad_y:.2f}" stroke="{colour}" stroke-width="{width}" '
+                f'stroke-linecap="round"/>'
+            )
+
+    d.add(
+        f'<rect x="{pcb_x + 3:.2f}" y="{pcb_y + 5:.2f}" width="{pcb_w}" '
+        f'height="{pcb_h}" rx="7" fill="#000" opacity="0.15"/>'
+    )
+    d.add(
+        f'<rect x="{pcb_x:.2f}" y="{pcb_y:.2f}" width="{pcb_w}" height="{pcb_h}" '
+        f'rx="7" fill="{MODULE_PCB}" stroke="{MODULE_EDGE}" stroke-width="1.5"/>'
+    )
+    d.add(
+        f'<rect x="{pcb_x - 4:.2f}" y="{pad_ys[0] - 14:.2f}" width="15" '
+        f'height="{pad_ys[-1] - pad_ys[0] + 28:.2f}" rx="2" fill="#101215" '
+        f'stroke="{MODULE_EDGE}" stroke-width="1"/>'
+    )
+
+    for index in range(3):
+        led_x = pcb_x + 86 + index * 70
+        led_y = pcb_y + pcb_h / 2
+        d.add(
+            f'<rect x="{led_x - 29:.2f}" y="{led_y - 29:.2f}" width="58" height="58" '
+            f'rx="4" fill="{LED_BODY}" stroke="#c8c3b6" stroke-width="1.5"/>'
+        )
+        d.add(
+            f'<circle cx="{led_x:.2f}" cy="{led_y:.2f}" r="21" fill="{LED_LENS}" '
+            f'stroke="#cbc6ba" stroke-width="1.5"/>'
+        )
+        # Decoupling capacitor alongside each pixel, as on the real board.
+        d.add(
+            f'<rect x="{led_x - 29:.2f}" y="{led_y - 45:.2f}" width="13" height="8" '
+            f'rx="2" fill="#57503f"/>'
+        )
+
+    # Unused output pads at the far end of the chain.
+    for pad_y in pad_ys:
+        d.add(
+            f'<circle cx="{pcb_x + pcb_w - 22:.2f}" cy="{pad_y:.2f}" r="7" '
+            f'fill="{PAD_FILL}" stroke="#9a7f45" stroke-width="1.5"/>'
+        )
+
+    for (name, label), pad_y in zip(pads, pad_ys):
+        d.text(pcb_x + 15, pad_y + 3.5, label, size=10, fill="#eef1f4", anchor="start", weight="bold")
+        hx, hy = hole(named_hole(name))
+        d.add(
+            f'<path d="M {pin_x:.2f} {pad_y:.2f} L {hx:.2f} {hy:.2f}" fill="none" '
+            f'stroke="{ACCENT}" stroke-width="1.3" stroke-dasharray="5 4" opacity="0.8"/>'
+        )
+        d.add(
+            f'<circle cx="{hx:.2f}" cy="{hy:.2f}" r="8.5" fill="none" stroke="{ACCENT}" '
+            f'stroke-width="2.4"/>'
+        )
+
+
+def draw_tactile_button(d: Drawing, side_a: str, side_b: str) -> None:
+    """A 6 x 6 mm tactile switch seated with all four legs in one half of the board.
+
+    The legs sit on a rectangle three holes across the columns and two along the
+    rows, so they leave the body's top and bottom edges. Each pair is joined
+    inside the switch and lands in a single five-hole group, leaving the switch
+    to bridge the gap between the two groups.
+    """
+    ax, ay = hole(side_a)
+    bx, _ = hole(side_b)
+    paired_y = ay - 3 * PITCH
+    centre_x, centre_y = (ax + bx) / 2, (ay + paired_y) / 2
+    body = 56.0
+    legs = ((ax, ay), (ax, paired_y), (bx, ay), (bx, paired_y))
+
+    for leg_x, leg_y in legs:
+        anchor_y = centre_y + 14 if leg_y > centre_y else centre_y - 14
+        for width, colour in ((6.5, LEAD_EDGE), (3.6, LEAD_FILL)):
+            d.add(
+                f'<line x1="{leg_x:.2f}" y1="{anchor_y:.2f}" x2="{leg_x:.2f}" '
+                f'y2="{leg_y:.2f}" stroke="{colour}" stroke-width="{width}" '
+                f'stroke-linecap="round"/>'
+            )
+
+    d.add(
+        f'<rect x="{centre_x - body / 2 + 3:.2f}" y="{centre_y - body / 2 + 4:.2f}" '
+        f'width="{body}" height="{body}" rx="5" fill="#000" opacity="0.15"/>'
+    )
+    d.add(
+        f'<rect x="{centre_x - body / 2:.2f}" y="{centre_y - body / 2:.2f}" '
+        f'width="{body}" height="{body}" rx="5" fill="{SWITCH_BODY}" '
+        f'stroke="{SWITCH_EDGE}" stroke-width="1.5"/>'
+    )
+    d.add(
+        f'<circle cx="{centre_x:.2f}" cy="{centre_y:.2f}" r="15" fill="{SWITCH_CAP}" '
+        f'stroke="#23282c" stroke-width="1.5"/>'
+    )
+    d.add(
+        f'<circle cx="{centre_x - 4.5:.2f}" cy="{centre_y - 5:.2f}" r="4" fill="#767d84"/>'
+    )
+
+    for leg_x, leg_y in legs:
+        d.add(f'<circle cx="{leg_x:.2f}" cy="{leg_y:.2f}" r="2.6" fill="#17171a" opacity="0.6"/>')
+
+    # The empty centre channel is the one place a label can sit uncluttered.
+    d.text(
+        centre_x + 94,
+        CHANNEL_TOP_Y + 32,
+        "6 \u00d7 6 mm button",
+        size=12,
+        fill=LABEL_GREY,
+        anchor="start",
+        weight="bold",
+    )
+
+
 def _quad_point(p0, c, p1, t):
     u = 1 - t
     return (
@@ -676,11 +884,125 @@ def diagram_wired_up() -> Drawing:
     return d
 
 
-DIAGRAMS = {
-    "common/microcontroller_seated_in_breadboard.png": diagram_microcontroller_seated,
-    "project_1/led_placed.png": diagram_led_placed,
-    "project_1/components_placed.png": diagram_components_placed,
-    "project_1/wired_up.png": diagram_wired_up,
+def _pixel_module_jumpers(d: Drawing, power_colour: str) -> None:
+    """The three wires from the module's holes back to the seated module's pins."""
+    draw_jumper(
+        d,
+        named_hole("jumper.pixels-power.start"),
+        named_hole("jumper.pixels-power.end"),
+        power_colour,
+        (row_x(7), -20),
+    )
+    draw_jumper(
+        d,
+        named_hole("jumper.pixels-data.start"),
+        named_hole("jumper.pixels-data.end"),
+        WIRE_GREEN,
+        (row_x(10), 30),
+    )
+    draw_jumper(
+        d,
+        named_hole("jumper.pixels-ground.start"),
+        named_hole("jumper.pixels-ground.end"),
+        WIRE_BLACK,
+        (row_x(8), -60),
+    )
+
+
+def diagram_project_3_wiring() -> Drawing:
+    d = Drawing(MARGIN_T_MODULE)
+    draw_breadboard(d)
+    draw_xiao(d)
+    draw_tactile_button(d, named_hole("button.side-a"), named_hole("button.side-b"))
+
+    _pixel_module_jumpers(d, WIRE_ORANGE)
+    draw_jumper(
+        d,
+        named_hole("jumper.button-signal.start"),
+        named_hole("jumper.button-signal.end"),
+        WIRE_YELLOW,
+        # Runs flat below the module before rising, since the module's lower edge
+        # sits just above this wire's starting hole.
+        (row_x(11), COLUMN_Y["C"]),
+    )
+    draw_jumper(
+        d,
+        named_hole("jumper.button-ground.start"),
+        named_hole("jumper.button-ground.end"),
+        WIRE_BLACK,
+        # Ground is only available in the top half, so this arcs over the module
+        # and comes down onto the button's free hole from above.
+        (row_x(12), -85),
+    )
+    draw_pixel_module(d)
+
+    ground = named_hole("jumper.pixels-ground.start")
+    button_ground = named_hole("jumper.button-ground.start")
+    power = named_hole("jumper.pixels-power.start")
+    data = named_hole("jumper.pixels-data.start")
+    callout(d, button_ground, f"GND \u00b7 {button_ground}", (26, -30), colour=WIRE_BLACK, anchor="start")
+    callout(d, ground, f"GND \u00b7 {ground}", (150, -30), colour=WIRE_BLACK, anchor="start")
+    callout(d, power, f"3.3 V \u00b7 {power}", (290, -30), colour="#c25c00", anchor="start")
+    callout(d, data, f"GPIO 20 \u00b7 {data}", (455, -30), colour=WIRE_GREEN, anchor="start")
+
+    signal_start = named_hole("jumper.button-signal.start")
+    callout(
+        d,
+        signal_start,
+        f"GPIO 21 \u00b7 {signal_start}",
+        (26, LABEL_Y_BOTTOM),
+        colour=ACCENT_DARK_YELLOW,
+        anchor="start",
+    )
+    return d
+
+
+def diagram_project_5_wiring() -> Drawing:
+    d = Drawing(MARGIN_T_MODULE)
+    draw_breadboard(d)
+    draw_xiao(d)
+    _pixel_module_jumpers(d, WIRE_RED)
+    draw_pixel_module(d)
+
+    power = named_hole("jumper.pixels-power.start")
+    ground = named_hole("jumper.pixels-ground.start")
+    data = named_hole("jumper.pixels-data.start")
+    callout(d, power, f"5 V \u00b7 {power}", (26, -30), colour=WIRE_RED, anchor="start")
+    callout(d, ground, f"GND \u00b7 {ground}", (150, -30), colour=WIRE_BLACK, anchor="start")
+    callout(d, data, f"GPIO 20 \u00b7 {data}", (265, -30), colour=WIRE_GREEN, anchor="start")
+    return d
+
+
+@dataclass(frozen=True)
+class ProjectDiagrams:
+    """One project's TeX source and the diagrams drawn from its coordinates."""
+
+    source: Path
+    coordinates: frozenset[str]
+    outputs: dict[str, Callable[[], Drawing]]
+
+
+PROJECTS = {
+    1: ProjectDiagrams(
+        source=PROJECT_GUIDE_DIR / "projects" / "project_1.tex",
+        coordinates=PROJECT_1_COORDINATES,
+        outputs={
+            "common/microcontroller_seated_in_breadboard.png": diagram_microcontroller_seated,
+            "project_1/led_placed.png": diagram_led_placed,
+            "project_1/components_placed.png": diagram_components_placed,
+            "project_1/wired_up.png": diagram_wired_up,
+        },
+    ),
+    3: ProjectDiagrams(
+        source=PROJECT_GUIDE_DIR / "projects" / "project_3.tex",
+        coordinates=PIXEL_MODULE_COORDINATES | BUTTON_COORDINATES,
+        outputs={"project_3/wiring.png": diagram_project_3_wiring},
+    ),
+    5: ProjectDiagrams(
+        source=PROJECT_GUIDE_DIR / "projects" / "project_5.tex",
+        coordinates=PIXEL_MODULE_COORDINATES,
+        outputs={"project_5/wiring.png": diagram_project_5_wiring},
+    ),
 }
 
 
@@ -688,10 +1010,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--width", type=int, default=2200, help="output PNG width in pixels")
     parser.add_argument(
-        "--source",
-        type=Path,
-        default=DEFAULT_SOURCE,
-        help="TeX file containing the named breadboard coordinates",
+        "--project",
+        choices=("all", *(str(number) for number in PROJECTS)),
+        default="all",
+        help="which project's diagrams to render",
     )
     parser.add_argument(
         "--out",
@@ -701,29 +1023,39 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    global COORDINATES
-    try:
-        COORDINATES = read_coordinates(args.source)
-    except (OSError, ValueError) as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 1
-
     rsvg = shutil.which("rsvg-convert")
     if rsvg is None:
         print("rsvg-convert not found; install it with: brew install librsvg", file=sys.stderr)
         return 1
 
-    print(f"read {len(COORDINATES)} coordinates from {args.source}")
-    for name, builder in DIAGRAMS.items():
-        target = args.out / name
-        target.parent.mkdir(parents=True, exist_ok=True)
-        svg = builder().render()
-        with tempfile.NamedTemporaryFile("w", suffix=".svg", delete=False) as fh:
-            fh.write(svg)
-            svg_path = fh.name
-        subprocess.run([rsvg, "-w", str(args.width), "-o", str(target), svg_path], check=True)
-        Path(svg_path).unlink()
-        print(f"wrote {target}")
+    selected = (
+        list(PROJECTS.values())
+        if args.project == "all"
+        else [PROJECTS[int(args.project)]]
+    )
+
+    global COORDINATES
+    for project in selected:
+        try:
+            COORDINATES = read_coordinates(
+                [COMMON_SOURCE, project.source],
+                SEATING_COORDINATES | project.coordinates,
+            )
+        except (OSError, ValueError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+
+        print(f"read {len(COORDINATES)} coordinates for {project.source.name}")
+        for name, builder in project.outputs.items():
+            target = args.out / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            svg = builder().render()
+            with tempfile.NamedTemporaryFile("w", suffix=".svg", delete=False) as fh:
+                fh.write(svg)
+                svg_path = fh.name
+            subprocess.run([rsvg, "-w", str(args.width), "-o", str(target), svg_path], check=True)
+            Path(svg_path).unlink()
+            print(f"wrote {target}")
 
     return 0
 

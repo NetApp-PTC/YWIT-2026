@@ -36,30 +36,43 @@ podman run --rm --userns=keep-id -v "$PWD":/work:rw -w /work \
 The first run pulls the image (it is about 6GB), after which builds take a few seconds.
 The `--userns=keep-id` flag keeps the generated files owned by you rather than by root.
 
-#### Regenerating the Breadboard Diagrams
-The step-by-step breadboard wiring diagrams under `project_guide/images/` are generated
-rather than drawn by hand. The project `.tex` file is the single source of truth for hole
-coordinates. At the first mention of a coordinate, use `\bbhole{name}{coordinate}`; it prints
-the coordinate in bold and gives it a stable name for the diagram generator. Use `\bbref{name}`
-to repeat that coordinate elsewhere in the text without storing it again. For example:
+#### Regenerating the Wiring Diagrams
+The wiring diagrams under `project_guide/images/` are generated rather than drawn by hand,
+with the project `.tex` files serving as the source of truth.
+
+Define a hole at its first mention with `\bbhole{name}{coordinate}`. It prints the coordinate
+in bold and gives it a stable name for the diagram generator. Use `\bbref{name}` to repeat
+that coordinate elsewhere in the text without storing it again. For example:
 
 ```tex
 Connect \bbhole{jumper.led.start}{J7} to \bbhole{jumper.led.end}{E16}.
 Check the jumper from \bbref{jumper.led.start} to \bbref{jumper.led.end}.
 ```
 
-`project_guide/tools/breadboard_diagrams.py` reads the `\bbhole` definitions directly from
-the project text. After changing a coordinate there, regenerate the diagrams with:
+For pin-to-pin wiring tables, use
+`\connectionrow{name}{peripheral pin}{XIAO pin}{detail}`. It prints the final three arguments
+as a normal table row while preserving the stable connection name.
+
+Because the microcontroller is seated the same way in every project, its four corner pins are
+defined once in `common/microcontroller_seating.tex`, which `project_1.tex` inputs and every
+diagram is drawn against.
+
+After changing a hole or connection in the project text, regenerate the diagrams with:
 
 ```sh
 cd micropython_workshop/project_guide
-python3 tools/breadboard_diagrams.py
+python3 tools/breadboard_diagrams.py            # or --project 3
 ```
 
-It needs `rsvg-convert` to turn the generated SVG into PNG (`brew install librsvg` on macOS,
-or `apt install librsvg2-bin` on Debian/Ubuntu). The script refuses to draw a jumper wire whose
-arc would pass across the microcontroller's body, which catches wiring steps that call for a
-hole the seated module physically covers.
+The script needs `rsvg-convert` to turn generated SVG into PNG (`brew install librsvg` on
+macOS, or `apt install librsvg2-bin` on Debian/Ubuntu). It refuses to draw anything it cannot
+verify against the text, which catches several kinds of drift:
+
+* a jumper whose arc would pass across the microcontroller's body, meaning the step calls for
+  a hole the seated module physically covers
+* a `\connectionrow` with no matching `jumper.<name>.start` / `.end` holes, meaning a wiring
+  table and the instructions that wire it up have diverged
+* a `\bbref` to an undefined hole, a duplicate `\bbhole`, or a missing required hole
 
 #### Flashing the Microcontroller Image
 If you want to flash a microcontroller with the exact version of all of the software that was used

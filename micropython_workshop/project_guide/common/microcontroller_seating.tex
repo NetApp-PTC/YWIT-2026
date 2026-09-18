@@ -1,0 +1,19 @@
+% Seating the microcontroller. This is identical for every project, so the
+% coordinates live here rather than in any one project chapter. The diagram
+% generator reads the \bbhole definitions below for every breadboard diagram
+% it draws, which is why this file is the only place they appear.
+\subsubsection{Attach the microcontroller to the breadboard}
+Carefully insert the pins at the bottom of your microcontroller into the breadboard, making sure that the microcontroller is oriented such that:
+\begin{itemize}
+    \item The pin labeled \textbf{5V} is inserted in hole at \textbf{Column H, Row 1} of the breadboard (or \bbhole{mcu.5v}{H1}, for short)
+    \item The pin labeled \textbf{GPIO2} is inserted in hole \bbhole{mcu.gpio2}{D1} of the breadboard
+    \item The pin labeled \textbf{GPIO20} is inserted in hole \bbhole{mcu.gpio20}{H7} of the breadboard
+    \item the pin labeled \textbf{GPIO21} is inserted in hole \bbhole{mcu.gpio21}{D7} of the breadboard
+\end{itemize}
+You may need to apply more pressure than expected to seat the microcontroller properly in the breadboard. When its over, it should look like this:
+
+\begin{figure}[H]
+    \centering
+    \maybeincludegraphics[width=.95\linewidth]{common/microcontroller_seated_in_breadboard.png}
+    \caption{So far, so good!}
+\end{figure}
