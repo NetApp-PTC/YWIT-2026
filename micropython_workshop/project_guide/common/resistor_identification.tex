@@ -1,0 +1,48 @@
+% Telling the 220 ohm and 10k ohm resistors apart. The resistors are drawn with
+% TikZ rather than photographed because the band colors have to stay readable
+% when the guide is printed in a classroom.
+\definecolor{bodymetal}{HTML}{9FC2E8}
+% xcolor's brown is a light tan that reads as gold next to the other bands.
+\definecolor{bandbrown}{HTML}{7B4A12}
+
+% \resistorglyph{band 1}{band 2}{band 3}{band 4}{band 5}
+% The kit's resistors carry one band on each end bulge and three across the
+% middle, all at roughly even spacing, so the geometry here is fixed.
+\newcommand{\resistorglyph}[5]{%
+\begin{tikzpicture}[x=1cm, y=1cm]
+    \draw[line width=1pt, gray!50!black] (-0.5,0.3) -- (2.8,0.3);
+    \draw[fill=bodymetal, draw=black!55] (0.24,0.04) rectangle (2.06,0.56);
+    \draw[fill=bodymetal, draw=black!55, rounded corners=3pt] (0.02,0) rectangle (0.46,0.6);
+    \draw[fill=bodymetal, draw=black!55, rounded corners=3pt] (1.84,0) rectangle (2.28,0.6);
+    \fill[#1] (0.16,0.01) rectangle (0.32,0.59);
+    \fill[#2] (0.62,0.05) rectangle (0.78,0.55);
+    \fill[#3] (1.07,0.05) rectangle (1.23,0.55);
+    \fill[#4] (1.52,0.05) rectangle (1.68,0.55);
+    \fill[#5] (1.98,0.01) rectangle (2.14,0.59);
+\end{tikzpicture}%
+}
+
+% \resistorcell{value}{band 1}{band 2}{band 3}{band 4}{band 5}{caption}
+\newcommand{\resistorcell}[7]{%
+\begin{tabular}{c}
+    \textbf{#1} \\[4pt]
+    \resistorglyph{#2}{#3}{#4}{#5}{#6} \\[2pt]
+    \small #7
+\end{tabular}%
+}
+
+\begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!50!black]
+    \textbf{Which resistor is which?} Both resistors are small and blue with five evenly spaced
+    colored bands, and nothing is printed on them. You do not need to figure out which end to read
+    from---just count the \textbf{red} bands. The \textbf{220\si{\ohm}} resistor has \textbf{two red
+    bands next to each other}, and the \textbf{10\si{\kilo\ohm}} resistor has \textbf{exactly one red
+    band}. Swapping the two will not damage anything, but the circuit will not behave the way this
+    project describes, so ask an instructor if you are not sure.
+
+    \medskip
+    \centering
+    \begin{tabular}{c @{\hspace{3em}} c}
+        \resistorcell{220\si{\ohm}}{red}{red}{black}{black}{bandbrown}{two red bands} &
+        \resistorcell{10\si{\kilo\ohm}}{bandbrown}{black}{black}{red}{bandbrown}{one red band}
+    \end{tabular}
+\end{tcolorbox}

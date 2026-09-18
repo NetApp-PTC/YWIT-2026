@@ -29,7 +29,7 @@ LED should get brighter---like a night light.
 \pagebreak
 
 \section{Components}
-\begin{itemize}
+\begin{components}
     \item Seeed XIAO ESP32-C3 microcontroller
     \item 1x LED (any color)
     \item 1x 220\si{\ohm} resistor (for the LED)
@@ -37,13 +37,11 @@ LED should get brighter---like a night light.
     \item 1x 10\si{\kilo\ohm} resistor (for the LDR voltage divider)
     \item Breadboard
     \item Jumper wires
-\end{itemize}
+\end{components}
+
+\input{common/resistor_identification.tex}
 
 \section{Directions}
-
-\subsubsection{Remove previous components}
-Before beginning, remove any components from prior chapters including LEDs, buttons, and wires. You may leave the
-microcontroller attached to the breadboard.
 
 \subsection{Creating the circuit}
 Using jumper cables, you will assemble two small circuits: an LED with a current-limiting resistor,
@@ -65,7 +63,7 @@ You should be left with something that looks like this:
 \end{figure}
 
 \begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!50!black]
-    NOTE: Whenever you connect an LED to a microcontroller, you must always connect a resistor in series
+    NOTE: Whenever you connect an LED to a circuit, you must always connect a resistor in series
     with it. In series means that the power goes in one leg of the LED, the other leg of the LED is attached
     to one leg of the resistor, and the ground completes the circuit from the other leg of the resistor.
     This is important so that you do not burn out the LED and/or the microcontroller pin.

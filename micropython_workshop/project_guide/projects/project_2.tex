@@ -26,13 +26,13 @@ window counts as a miss.
 \pagebreak
 
 \section{Components}
-\begin{itemize}
+\begin{components}
     \item Seeed XIAO ESP32-C3 microcontroller
     \item 3-pixel WS2812B LED strip
     \item 1x pushbutton
     \item Breadboard
     \item Jumper wires
-\end{itemize}
+\end{components}
 
 \section{Directions}
 
@@ -40,6 +40,8 @@ window counts as a miss.
 Before starting Project 2, remove components and wires from the previous project.
 
 \subsection{Creating the circuit}
+
+\input{common/microcontroller_seating.tex}
 
 \subsubsection{WS2812B strip wiring}
 The LED strip has a right-angle header so it stands upright once seated.
@@ -79,7 +81,7 @@ The code enables the internal pull-up resistor, so the pin reads HIGH when idle 
 
 \begin{figure}[H]
     \centering
-    \maybeincludegraphics[width=.9\linewidth]{project_2/wiring.png}
+    \maybeincludegraphics[width=.95\linewidth]{project_2/wiring.png}
     \caption{Connect the LED strip and button to the XIAO ESP32-C3.}
 \end{figure}
 

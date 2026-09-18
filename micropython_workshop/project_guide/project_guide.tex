@@ -17,6 +17,9 @@
 \usepackage{tcolorbox}
 \usepackage{siunitx} % Allows us to use math symbols (like Omega) in normal paragraphs
 \usepackage{float} % Allows specifying putting an image exactly where it is in the .tex code flow
+\usepackage{tikz} % draw diagrams (like the resistor color bands) directly in the document
+\usepackage{multicol} % lay out short lists (like the components list) in columns
+\usepackage{enumitem} % control the spacing of list items
 \usepackage{pdfpages} % used to include an externally created PDF (like our cover)
 \usepackage{titlesec} % allow formatting of the chapter/section headers
 
@@ -91,6 +94,15 @@
     \framebox[0.6\linewidth][c]{\textit{[photo placeholder]}}%
   }%
 }
+
+% The parts list at the top of every project. Two tight columns keep it to a
+% few lines instead of a long ladder of mostly empty page.
+\setlength{\multicolsep}{6pt plus 2pt minus 1pt}
+% The interline penalty keeps a wrapped item from being split across the two
+% columns, which would leave its tail sitting in the second column with no bullet.
+\newenvironment{components}
+  {\begin{multicols}{2}\interlinepenalty=10000\begin{itemize}[nosep, leftmargin=1.3em]}
+  {\end{itemize}\end{multicols}}
 
 % Breadboard coordinates. \bbhole defines a named coordinate at its first use
 % and prints it in bold; \bbref prints that same coordinate again later. The

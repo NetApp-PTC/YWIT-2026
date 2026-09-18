@@ -20,18 +20,21 @@ By the end, you will have a complete wireless ``mood lamp'' that works without i
 
 \section{Components}
 
-\begin{itemize}
+\begin{components}
     \item Seeed XIAO ESP32-C3 microcontroller
     \item 3-pixel WS2812B LED strip
     \item Breadboard
     \item Jumper wires
-\end{itemize}
+\end{components}
 
 \section{Directions}
 
 \subsection{Creating the circuit}
 Before starting, remove components from earlier projects that are no longer needed.
 
+\input{common/microcontroller_seating.tex}
+
+\subsubsection{WS2812B strip wiring}
 The LED strip has a right-angle header so it stands upright once seated.
 Push those three pins into the top half of the board: \textbf{5V} into
 \bbhole{pixels.header.power}{J12}, \textbf{DI} into \bbhole{pixels.header.data}{J13}, and
@@ -50,7 +53,7 @@ Push those three pins into the top half of the board: \textbf{5V} into
 
 \begin{figure}[H]
     \centering
-    \maybeincludegraphics[width=.9\linewidth]{project_5/wiring.png}
+    \maybeincludegraphics[width=.95\linewidth]{project_5/wiring.png}
     \caption{Connect the three-pixel LED strip to the XIAO ESP32-C3.}
 \end{figure}
 
