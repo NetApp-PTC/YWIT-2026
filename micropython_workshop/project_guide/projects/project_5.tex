@@ -32,30 +32,21 @@ By the end, you will have a complete wireless ``mood lamp'' that works without i
 \subsection{Creating the circuit}
 Before starting, remove components from earlier projects that are no longer needed.
 
-Wire the LEDs as follows:
-
-\begin{center}
-\begin{tabular}{|l|l|l|}
-    \hline
-    \textbf{WS2812B Pin} & \textbf{XIAO ESP32-C3} & \textbf{Notes} \\
-    \hline
-    \connectionrow{pixels.data}{DI (data in)}{GPIO 20 (D7)}{Data input for first LED}
-    \connectionrow{pixels.power}{5V}{5V (or 3V3)}{5V is preferred for brightness consistency}
-    \connectionrow{pixels.ground}{GND}{GND}{Must share ground with microcontroller}
-    \hline
-\end{tabular}
-\end{center}
-
 The strip has a right-angle header soldered to its \textbf{DI} end, so it stands upright once
 seated. Push those three pins into the top half of the board: \textbf{5V} into
 \bbhole{pixels.header.power}{J12}, \textbf{DI} into \bbhole{pixels.header.data}{J13}, and
-\textbf{GND} into \bbhole{pixels.header.ground}{J14}. Then run three jumper wires:
-\begin{itemize}
-    \item \bbhole{jumper.pixels-power.start}{I1} to \bbhole{jumper.pixels-power.end}{I12}
-    \item \bbhole{jumper.pixels-data.start}{I7} to \bbhole{jumper.pixels-data.end}{I13}, which
-    connects \textbf{GPIO 20} to \textbf{DI}
-    \item \bbhole{jumper.pixels-ground.start}{I2} to \bbhole{jumper.pixels-ground.end}{I14}
-\end{itemize}
+\textbf{GND} into \bbhole{pixels.header.ground}{J14}. Then add these connections:
+\begin{center}
+\begin{tabular}{|l|l|l|}
+    \hline
+    \textbf{WS2812B pin} & \textbf{XIAO pin} & \textbf{Jumper holes} \\
+    \hline
+    \connectionrow{pixels-power}{5V}{5V}{I1}{I12}
+    \connectionrow{pixels-data}{DI (data in)}{GPIO 20}{I7}{I13}
+    \connectionrow{pixels-ground}{GND}{GND}{I2}{I14}
+    \hline
+\end{tabular}
+\end{center}
 
 Make sure your data wire is connected to the side labeled ``DI'' (not ``DO'').
 

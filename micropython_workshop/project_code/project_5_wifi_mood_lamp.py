@@ -49,9 +49,9 @@ control_page_html = ""
 
 def clamp_int(value, minimum, maximum, field_name):
     if not isinstance(value, int):
-        raise ValueError("{} must be an integer".format(field_name))
+        raise ValueError(f"{field_name} must be an integer")
     if value < minimum or value > maximum:
-        raise ValueError("{} must be in [{}..{}]".format(field_name, minimum, maximum))
+        raise ValueError(f"{field_name} must be in [{minimum}..{maximum}]")
     return value
 
 
@@ -95,7 +95,7 @@ def render_manual():
 
 def unique_ssid():
     uid_hex = ubinascii.hexlify(machine.unique_id()).decode().upper()
-    return "MoodLamp-{}".format(uid_hex[-6:])
+    return f"MoodLamp-{uid_hex[-6:]}"
 
 
 def start_access_point():
@@ -123,7 +123,7 @@ def start_access_point():
     print("AP ready")
     print("SSID:", ap_ssid)
     print("Password:", AP_PASSWORD)
-    print("Open: http://{}/".format(ap_ip))
+    print(f"Open: http://{ap_ip}/")
 
 
 def wheel(pos):
@@ -144,7 +144,7 @@ def speed_to_interval_ms(speed, slow_ms, fast_ms):
 
 def set_animation(name, speed):
     if name not in AVAILABLE_ANIMATIONS:
-        raise ValueError("animation must be one of {}".format(AVAILABLE_ANIMATIONS))
+        raise ValueError(f"animation must be one of {AVAILABLE_ANIMATIONS}")
     state["animation"]["running"] = True
     state["animation"]["name"] = name
     state["animation"]["speed"] = clamp_int(speed, 1, 100, "speed")
@@ -228,11 +228,11 @@ def update_animation(now_ms):
 
 def json_response(conn, status, payload):
     body = ujson.dumps(payload)
-    conn.send("HTTP/1.1 {}\r\n".format(status))
+    conn.send(f"HTTP/1.1 {status}\r\n")
     conn.send("Content-Type: application/json\r\n")
     conn.send("Cache-Control: no-store\r\n")
     conn.send("Connection: close\r\n")
-    conn.send("Content-Length: {}\r\n\r\n".format(len(body)))
+    conn.send(f"Content-Length: {len(body)}\r\n\r\n")
     conn.send(body)
 
 
@@ -241,7 +241,7 @@ def html_response(conn, html):
     conn.send("Content-Type: text/html; charset=utf-8\r\n")
     conn.send("Cache-Control: no-store\r\n")
     conn.send("Connection: close\r\n")
-    conn.send("Content-Length: {}\r\n\r\n".format(len(html)))
+    conn.send(f"Content-Length: {len(html)}\r\n\r\n")
     conn.send(html)
 
 
@@ -251,7 +251,7 @@ def load_control_page():
         with open(CONTROL_PAGE_FILE, "r") as handle:
             control_page_html = handle.read()
     except OSError:
-        raise RuntimeError("Missing dashboard file: {}".format(CONTROL_PAGE_FILE))
+        raise RuntimeError(f"Missing dashboard file: {CONTROL_PAGE_FILE}")
 
 
 def state_payload():

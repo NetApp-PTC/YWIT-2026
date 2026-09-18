@@ -108,10 +108,15 @@
   \fi
 }
 
-% A machine-readable row for pin-to-pin wiring tables. The first argument is
-% a stable connection name used by the diagram generator; the remaining
-% arguments are printed as the table's three visible columns.
-\newcommand{\connectionrow}[4]{#2 & #3 & #4 \\}
+% A machine-readable wiring row and its two breadboard endpoints. The first
+% argument is a stable connection name. The remaining arguments print the
+% peripheral pin, XIAO pin, and jumper holes while also defining those holes
+% for later \bbref uses. The diagram generator reads the same five arguments.
+\newcommand{\connectionrow}[5]{%
+  \expandafter\gdef\csname bbhole@jumper.#1.start\endcsname{#4}%
+  \expandafter\gdef\csname bbhole@jumper.#1.end\endcsname{#5}%
+  #2 & #3 & \textbf{#4} $\rightarrow$ \textbf{#5} \\
+}
 
 \begin{document}
 

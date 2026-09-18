@@ -57,9 +57,12 @@ The KY-040 module has five pins:
     \item \textbf{CLK} — Clock signal; pulses as the knob turns
     \item \textbf{DT} — Data signal; used together with CLK to determine direction
     \item \textbf{SW} — Switch; goes LOW when the built-in button is pressed
-    \item \textbf{VCC} — Power supply (connect to 3.3V)
+    \item \textbf{+} — Power supply (connect to 3.3V); some boards label this \textbf{VCC}
     \item \textbf{GND} — Ground
 \end{itemize}
+
+Hold the module with the knob facing you and the pins pointing down: the silkscreen reads
+\textbf{GND}, \textbf{+}, \textbf{SW}, \textbf{DT}, \textbf{CLK} from left to right.
 
 \begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!50!black]
     \textbf{Important:} Power the KY-040 from \textbf{3.3V}, not 5V. The ESP32-C3 GPIO pins are
@@ -73,40 +76,47 @@ speaker share the breadboard with the microcontroller.
 
 \subsubsection{KY-040 Encoder Wiring}
 
+Seat the encoder module's five-pin header along the front edge of the breadboard, knob facing
+you, so the pins land in silkscreen order: \textbf{GND} in
+\bbhole{encoder.header.ground}{A12}, \textbf{+} in
+\bbhole{encoder.header.power}{A13}, \textbf{SW} in
+\bbhole{encoder.header.sw}{A14}, \textbf{DT} in
+\bbhole{encoder.header.dt}{A15}, and \textbf{CLK} in
+\bbhole{encoder.header.clk}{A16}. Row A leaves the knob clear of the other wiring, so it is
+easier to grip and turn. Then add these connections:
 \begin{center}
 \begin{tabular}{|l|l|l|}
     \hline
-    \textbf{KY-040 Pin} & \textbf{XIAO GPIO} & \textbf{XIAO Label} \\
+    \textbf{KY-040 pin} & \textbf{XIAO pin} & \textbf{Jumper holes} \\
     \hline
-    CLK & GPIO 10 & D10 \\
-    DT  & GPIO 9  & D9  \\
-    SW  & GPIO 8  & D8  \\
-    VCC & 3V3     & 3V3 \\
-    GND & GND     & GND \\
+    \connectionrow{encoder-ground}{GND}{GND}{I2}{E12}
+    \connectionrow{encoder-power}{+ (VCC)}{3V3}{I3}{E13}
+    \connectionrow{encoder-sw}{SW}{GPIO 8}{I6}{E14}
+    \connectionrow{encoder-dt}{DT}{GPIO 9}{I5}{E15}
+    \connectionrow{encoder-clk}{CLK}{GPIO 10}{I4}{E16}
     \hline
 \end{tabular}
 \end{center}
 
 \subsubsection{Speaker Wiring}
 
-Connect the Treedix speaker's JST connector leads to the breadboard:
-
+Insert the speaker's adapted Dupont leads into the bottom half of the breadboard:
+the positive lead in \bbhole{speaker.lead.signal}{C20} and the negative lead in
+\bbhole{speaker.lead.ground}{C22}. Then add these connections:
 \begin{center}
 \begin{tabular}{|l|l|l|}
     \hline
-    \textbf{Speaker Lead} & \textbf{XIAO GPIO} & \textbf{XIAO Label} \\
+    \textbf{Speaker lead} & \textbf{XIAO pin} & \textbf{Jumper holes} \\
     \hline
-    Signal (+) & GPIO 20 & D7 \\
-    Ground ($-$) & GND     & GND \\
+    \connectionrow{speaker-signal}{Signal (+)}{GPIO 20}{I7}{E20}
+    \connectionrow{speaker-ground}{Ground ($-$)}{GND}{J2}{E22}
     \hline
 \end{tabular}
 \end{center}
 
 \begin{figure}[H]
     \centering
-    % TODO: Add wiring photo here
-    % \includegraphics[width=.7\linewidth]{project_4/wired_up.jpg}
-    \fbox{\parbox{.7\linewidth}{\centering\vspace{2cm}Wiring photo placeholder\vspace{2cm}}}
+    \maybeincludegraphics[width=.95\linewidth]{project_4/wiring.png}
     \caption{Encoder and speaker wired to the XIAO ESP32-C3}
 \end{figure}
 

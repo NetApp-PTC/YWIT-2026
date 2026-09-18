@@ -88,23 +88,22 @@ less light.
 \end{figure}
 
 \subsubsection{Connect the necessary jumper wires}
-\begin{itemize}
-    \item Place one end of a red jumper wire into hole \bbhole{jumper.led.start}{J7} of the breadboard and the
-    other end into \bbhole{jumper.led.end}{E16}. This connects \textbf{GPIO 20} to the LED. The program will
-    use PWM on this pin to set brightness.
-    \item Using a black jumper wire, place one end of the wire into hole
-    \bbhole{jumper.led-ground.start}{J2} of the breadboard and the other end into
-    \bbhole{jumper.led-ground.end}{E21}. This provides a ground path for the LED through the
-    220\si{\ohm} resistor.
-    \item Place one end of a jumper wire into hole \bbhole{jumper.sensor.start}{C1} and the other end into
-    \bbhole{jumper.sensor.end}{E10}. This connects \textbf{GPIO 2} (the analog input) to the LDR /
-    10\si{\kilo\ohm} junction.
-    \item Place one end of a jumper wire into hole \bbhole{jumper.ldr-power.start}{J3} and the other end into
-    \bbhole{jumper.ldr-power.end}{E11}. This provides \textbf{3.3} volts to the other side of the LDR.
-    \item Using a black jumper wire, place one end into hole \bbhole{jumper.ldr-ground.start}{I2} and the
-    other end into \bbhole{jumper.ldr-ground.end}{E14}.
-    This provides a ground path for the 10\si{\kilo\ohm} resistor.
-\end{itemize}
+\begin{center}
+\begin{tabular}{|l|l|l|}
+    \hline
+    \textbf{Circuit connection} & \textbf{XIAO pin} & \textbf{Jumper holes} \\
+    \hline
+    \connectionrow{led}{LED anode}{GPIO 20}{J7}{E16}
+    \connectionrow{led-ground}{LED resistor}{GND}{J2}{E21}
+    \connectionrow{sensor}{LDR/resistor junction}{GPIO 2}{C1}{E10}
+    \connectionrow{ldr-power}{LDR}{3V3}{J3}{E11}
+    \connectionrow{ldr-ground}{LDR resistor}{GND}{I2}{E14}
+    \hline
+\end{tabular}
+\end{center}
+
+The program uses PWM on GPIO 20 to set the LED brightness. GPIO 2 measures the
+voltage at the junction between the LDR and its 10\si{\kilo\ohm} resistor.
 
 You should be left with something that looks like this:
 \begin{figure}[H]

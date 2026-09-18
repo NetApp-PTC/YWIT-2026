@@ -77,10 +77,9 @@ def print_status():
     current = knob.value()
     target = secret_code[dial_index]
     distance = dial_distance(current, target)
+    dial_number = dial_index + 1
     print(
-        "Dial {}/{}: showing {} (target {}, distance {})".format(
-            dial_index + 1, CODE_LENGTH, current, target, distance
-        )
+        f"Dial {dial_number}/{CODE_LENGTH}: showing {current} (target {target}, distance {distance})"
     )
 
 
@@ -96,12 +95,12 @@ def on_enter(_):
     target = secret_code[dial_index]
 
     if current != target:
-        print("Wrong! Expected {}, got {}".format(target, current))
+        print(f"Wrong! Expected {target}, got {current}")
         play_buzz()
         print_status()
         return
 
-    print("Correct digit: {}".format(current))
+    print(f"Correct digit: {current}")
     play_tone(*TONE_EXACT)
     dial_index += 1
 

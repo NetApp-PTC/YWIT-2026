@@ -42,55 +42,38 @@ Before starting Project 3, remove components and wires from the previous project
 \subsection{Creating the circuit}
 
 \subsubsection{WS2812B strip wiring}
-Wire your 3-pixel WS2812B chain as follows:
-\begin{center}
-\begin{tabular}{|l|l|l|}
-    \hline
-    \textbf{WS2812B Pin} & \textbf{XIAO GPIO} & \textbf{XIAO Label} \\
-    \hline
-    \connectionrow{pixels.data}{DI (first LED)}{GPIO 20}{D7}
-    \connectionrow{pixels.power}{5V (power in)}{3V3}{3V3}
-    \connectionrow{pixels.ground}{GND}{GND}{GND}
-    \hline
-\end{tabular}
-\end{center}
-
 The strip has a right-angle header soldered to its \textbf{DI} end, so it stands upright once
 seated. Push those three pins into the top half of the board: \textbf{5V} into
 \bbhole{pixels.header.power}{J12}, \textbf{DI} into \bbhole{pixels.header.data}{J13}, and
-\textbf{GND} into \bbhole{pixels.header.ground}{J14}. Then run three jumper wires:
-\begin{itemize}
-    \item \bbhole{jumper.pixels-power.start}{I3} to \bbhole{jumper.pixels-power.end}{I12}, which
-    feeds 3.3 volts to the pin marked 5V
-    \item \bbhole{jumper.pixels-data.start}{I7} to \bbhole{jumper.pixels-data.end}{I13}, which
-    connects \textbf{GPIO 20} to \textbf{DI}
-    \item \bbhole{jumper.pixels-ground.start}{I2} to \bbhole{jumper.pixels-ground.end}{I14}
-\end{itemize}
-
-\subsubsection{Button wiring}
-Wire a pushbutton between GPIO21 and GND:
+\textbf{GND} into \bbhole{pixels.header.ground}{J14}. Then add these connections:
 \begin{center}
 \begin{tabular}{|l|l|l|}
     \hline
-    \textbf{Button Pin} & \textbf{XIAO GPIO} & \textbf{XIAO Label} \\
+    \textbf{WS2812B pin} & \textbf{XIAO pin} & \textbf{Jumper holes} \\
     \hline
-    \connectionrow{button.signal}{One side}{GPIO 21}{D6}
-    \connectionrow{button.ground}{Other side}{GND}{GND}
+    \connectionrow{pixels-power}{5V (power in)}{3V3}{I3}{I12}
+    \connectionrow{pixels-data}{DI (first LED)}{GPIO 20}{I7}{I13}
+    \connectionrow{pixels-ground}{GND}{GND}{I2}{I14}
     \hline
 \end{tabular}
 \end{center}
 
+\subsubsection{Button wiring}
 Press the button into the bottom edge of the board so that its legs reach from column \textbf{A}
 up to column \textbf{D}. One pair of legs goes into \bbhole{button.side-a}{A12} and \textbf{D12},
 and the other pair two rows along into \bbhole{button.side-b}{A14} and \textbf{D14}. The two legs
 of a pair are already joined inside the button, so it is the gap between the two pairs that the
-button closes. Then run two more jumper wires:
-\begin{itemize}
-    \item \bbhole{jumper.button-signal.start}{C7} to \bbhole{jumper.button-signal.end}{E12}, which
-    connects \textbf{GPIO 21} to one pair of legs
-    \item \bbhole{jumper.button-ground.start}{J2} to \bbhole{jumper.button-ground.end}{E14}, which
-    grounds the other pair
-\end{itemize}
+button closes. Then add these connections:
+\begin{center}
+\begin{tabular}{|l|l|l|}
+    \hline
+    \textbf{Button connection} & \textbf{XIAO pin} & \textbf{Jumper holes} \\
+    \hline
+    \connectionrow{button-signal}{One side}{GPIO 21}{C7}{E12}
+    \connectionrow{button-ground}{Other side}{GND}{J2}{E14}
+    \hline
+\end{tabular}
+\end{center}
 
 The code enables the internal pull-up resistor, so the pin reads HIGH when idle and LOW when pressed.
 

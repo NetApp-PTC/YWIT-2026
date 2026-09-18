@@ -40,18 +40,24 @@ The `--userns=keep-id` flag keeps the generated files owned by you rather than b
 The wiring diagrams under `project_guide/images/` are generated rather than drawn by hand,
 with the project `.tex` files serving as the source of truth.
 
-Define a hole at its first mention with `\bbhole{name}{coordinate}`. It prints the coordinate
-in bold and gives it a stable name for the diagram generator. Use `\bbref{name}` to repeat
-that coordinate elsewhere in the text without storing it again. For example:
+Define a component-placement hole at its first mention with `\bbhole{name}{coordinate}`. It
+prints the coordinate in bold and gives it a stable name for the diagram generator. Use
+`\bbref{name}` to repeat that coordinate elsewhere in the text without storing it again.
+For example:
 
 ```tex
-Connect \bbhole{jumper.led.start}{J7} to \bbhole{jumper.led.end}{E16}.
-Check the jumper from \bbref{jumper.led.start} to \bbref{jumper.led.end}.
+Place the LED anode in \bbhole{led.anode}{B16}.
+Check that the anode is still in \bbref{led.anode}.
 ```
 
-For pin-to-pin wiring tables, use
-`\connectionrow{name}{peripheral pin}{XIAO pin}{detail}`. It prints the final three arguments
-as a normal table row while preserving the stable connection name.
+For wiring tables, use
+`\connectionrow{name}{peripheral pin}{XIAO pin}{start hole}{end hole}`. It prints a compact
+three-column row and defines the named jumper endpoints for both later `\bbref` uses and the
+diagram generator:
+
+```tex
+\connectionrow{pixels-data}{DI}{GPIO 20}{I7}{I13}
+```
 
 Because the microcontroller is seated the same way in every project, its four corner pins are
 defined once in `common/microcontroller_seating.tex`, which `project_1.tex` inputs and every
@@ -70,8 +76,11 @@ verify against the text, which catches several kinds of drift:
 
 * a jumper whose arc would pass across the microcontroller's body, meaning the step calls for
   a hole the seated module physically covers
-* a `\connectionrow` with no matching `jumper.<name>.start` / `.end` holes, meaning a wiring
-  table and the instructions that wire it up have diverged
+* a `\connectionrow` with missing or invalid start/end holes
+* a `\connectionrow` whose start hole is not on the node of the XIAO pin it names, which
+  would silently wire a peripheral to a different GPIO than the code drives
+* holes that a rigid multi-pin header cannot reach, such as the KY-040's five pins being
+  asked for in more than one column or in non-consecutive rows
 * a `\bbref` to an undefined hole, a duplicate `\bbhole`, or a missing required hole
 
 #### Flashing the Microcontroller Image

@@ -70,9 +70,13 @@ MARGIN_R = 70
 MARGIN_T = 58
 MARGIN_B = 54
 
-# Diagrams showing the upright pixel module need room above the board to draw
-# it face-on, so the top margin is per-diagram rather than fixed.
+# Diagrams showing an upright module need room beside the board to draw it
+# face-on, so those margins are per-diagram rather than fixed. Each module is
+# drawn on the side of the board its own pins are seated in: the pixel module
+# plugs into the back rows, the encoder into the front. The encoder needs the
+# deeper margin because its knob stands taller than its PCB.
 MARGIN_T_MODULE = 240
+MARGIN_B_ENCODER = 304
 
 CANVAS_W = BOARD_W + MARGIN_L + MARGIN_R
 
@@ -139,8 +143,14 @@ BBHOLE_RE = re.compile(
 BBREF_RE = re.compile(r"\\bbref\s*\{(?P<name>[A-Za-z0-9_.-]+)\}")
 CONNECTION_RE = re.compile(
     r"\\connectionrow\s*\{(?P<name>[A-Za-z0-9_.-]+)\}"
-    r"\s*\{[^{}]*\}\s*\{[^{}]*\}\s*\{[^{}]*\}"
+    r"\s*\{[^{}]*\}\s*\{(?P<xiao>[^{}]*)\}"
+    r"\s*\{(?P<start>[A-J](?:[1-9]|[12][0-9]|30))\}"
+    r"\s*\{(?P<end>[A-J](?:[1-9]|[12][0-9]|30))\}"
 )
+
+# A breadboard row is split into two independent nodes by the centre channel.
+TOP_COLUMNS = frozenset("FGHIJ")
+BOTTOM_COLUMNS = frozenset("ABCDE")
 
 SEATING_COORDINATES = frozenset(
     {"mcu.5v", "mcu.gpio2", "mcu.gpio20", "mcu.gpio21"}
@@ -179,13 +189,49 @@ PIXEL_MODULE_COORDINATES = frozenset(
 
 BUTTON_COORDINATES = frozenset({"button.side-a", "button.side-b"})
 
+ENCODER_COORDINATES = frozenset(
+    {
+        "encoder.header.clk",
+        "encoder.header.dt",
+        "encoder.header.sw",
+        "encoder.header.power",
+        "encoder.header.ground",
+    }
+)
+
+SPEAKER_COORDINATES = frozenset(
+    {"speaker.lead.signal", "speaker.lead.ground"}
+)
+
 COORDINATES: dict[str, str] = {}
 
 
 def jumper_holes(connection: str) -> tuple[str, str]:
     """Map a \\connectionrow name onto the \\bbhole pair that wires it up."""
-    stem = connection.replace(".", "-")
-    return f"jumper.{stem}.start", f"jumper.{stem}.end"
+    return f"jumper.{connection}.start", f"jumper.{connection}.end"
+
+
+def _xiao_pin_name(column: str) -> str:
+    """Normalise a wiring table's XIAO column onto the board's own pin names."""
+    label = re.sub(r"\(.*?\)", "", column).strip()
+    gpio = re.fullmatch(r"GPIO\s*(\d+)", label)
+    return f"IO{gpio.group(1)}" if gpio else label
+
+
+def xiao_pin_nodes(coordinates: dict[str, str]) -> dict[str, tuple[frozenset[str], int]]:
+    """Map each XIAO pin onto the breadboard node its seated pin shares.
+
+    The two pin rows straddle the centre channel, so a pin on the 5V side can
+    only be reached from the top half of the board and vice versa. Deriving this
+    from the seating coordinates keeps it true if the module is ever re-seated.
+    """
+    nodes: dict[str, tuple[frozenset[str], int]] = {}
+    for pins, seat in ((PINS_H, coordinates["mcu.5v"]), (PINS_D, coordinates["mcu.gpio2"])):
+        columns = TOP_COLUMNS if seat[0] in TOP_COLUMNS else BOTTOM_COLUMNS
+        first_row = int(seat[1:])
+        for offset, pin in enumerate(pins):
+            nodes[pin] = (columns, first_row + offset)
+    return nodes
 
 
 def _without_tex_comments(text: str) -> str:
@@ -212,7 +258,7 @@ def read_coordinates(sources: list[Path], required: frozenset[str]) -> dict[str,
     coordinates: dict[str, str] = {}
     origin: dict[str, Path] = {}
     references: set[str] = set()
-    connections: set[str] = set()
+    connections: dict[str, str] = {}
 
     for source in sources:
         text = _without_tex_comments(source.read_text(encoding="utf-8"))
@@ -226,7 +272,20 @@ def read_coordinates(sources: list[Path], required: frozenset[str]) -> dict[str,
             coordinates[name] = match.group("coordinate")
             origin[name] = source
         references |= {match.group("name") for match in BBREF_RE.finditer(text)}
-        connections |= {match.group("name") for match in CONNECTION_RE.finditer(text)}
+        for match in CONNECTION_RE.finditer(text):
+            connection = match.group("name")
+            connections[connection] = match.group("xiao")
+            for name, coordinate in zip(
+                jumper_holes(connection),
+                (match.group("start"), match.group("end")),
+            ):
+                if name in coordinates:
+                    raise ValueError(
+                        f"{source}: duplicate wiring hole {name!r}, already defined "
+                        f"in {origin[name]}"
+                    )
+                coordinates[name] = coordinate
+                origin[name] = source
 
     where = ", ".join(str(source) for source in sources)
 
@@ -238,14 +297,34 @@ def read_coordinates(sources: list[Path], required: frozenset[str]) -> dict[str,
     if undefined_refs:
         raise ValueError(f"{where}: undefined \\bbref names: {', '.join(undefined_refs)}")
 
-    # Every connection listed in a wiring table must have holes to wire it into,
-    # so a table row and its wiring instructions cannot drift apart.
+    # Every connection row contributes exactly two validated breadboard holes.
     for connection in sorted(connections):
         unwired = [hole for hole in jumper_holes(connection) if hole not in coordinates]
         if unwired:
             raise ValueError(
                 f"{where}: \\connectionrow {connection!r} has no holes: "
                 f"missing {', '.join(unwired)}"
+            )
+
+    # A wire only reaches the GPIO its table row claims if it starts in that
+    # pin's node. Getting this wrong wires the peripheral to a different pin
+    # than the code drives, which no amount of redrawing would reveal.
+    pin_nodes = xiao_pin_nodes(coordinates)
+    for connection, column in sorted(connections.items()):
+        pin = _xiao_pin_name(column)
+        if pin not in pin_nodes:
+            raise ValueError(
+                f"{where}: \\connectionrow {connection!r} names XIAO pin {pin!r}, "
+                f"which is not one of {', '.join(sorted(pin_nodes))}"
+            )
+        columns, row = pin_nodes[pin]
+        start = coordinates[jumper_holes(connection)[0]]
+        if start[0] not in columns or int(start[1:]) != row:
+            reachable = ", ".join(f"{letter}{row}" for letter in sorted(columns))
+            raise ValueError(
+                f"{where}: \\connectionrow {connection!r} wires {pin} from {start}, "
+                f"but the seated module puts {pin} on the node reached at "
+                f"{reachable}"
             )
 
     return coordinates
@@ -288,8 +367,9 @@ def esc(text: str) -> str:
 class Drawing:
     """Minimal SVG builder."""
 
-    def __init__(self, margin_top: int = MARGIN_T) -> None:
+    def __init__(self, margin_top: int = MARGIN_T, margin_bottom: int = MARGIN_B) -> None:
         self.margin_top = margin_top
+        self.margin_bottom = margin_bottom
         self.parts: list[str] = []
         self.defs: list[str] = []
 
@@ -318,7 +398,7 @@ class Drawing:
     def render(self) -> str:
         defs = "\n".join(self.defs)
         body = "\n".join(self.parts)
-        canvas_h = BOARD_H + self.margin_top + MARGIN_B
+        canvas_h = BOARD_H + self.margin_top + self.margin_bottom
         return (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{CANVAS_W}" '
             f'height="{canvas_h}" viewBox="0 0 {CANVAS_W} {canvas_h}">\n'
@@ -661,6 +741,246 @@ def draw_pixel_module(d: Drawing) -> None:
         )
 
 
+def draw_rotary_encoder(d: Drawing) -> None:
+    """Draw the KY-040 face-on in front of the board, over the holes it uses.
+
+    The header is seated in the front row, so the module is drawn in front of
+    the board with its pins reaching back into their holes and its knob facing
+    out. That keeps the module and its leaders on the same side as its holes,
+    leaving the far side of the board free for the wiring callouts.
+
+    The pins are on the same 0.1" pitch as the breadboard, so each one is drawn
+    directly in line with the hole it drops into and the leaders run straight
+    back. Pins are ordered as the module's own silkscreen reads.
+    """
+    pins = (
+        ("encoder.header.ground", "GND"),
+        ("encoder.header.power", "+"),
+        ("encoder.header.sw", "SW"),
+        ("encoder.header.dt", "DT"),
+        ("encoder.header.clk", "CLK"),
+    )
+    seated = [hole(named_hole(name)) for name, _ in pins]
+    gaps = {second[0] - first[0] for first, second in zip(seated, seated[1:])}
+    if gaps != {PITCH} or len({y for _, y in seated}) != 1:
+        raise ValueError(
+            "the KY-040's five pins are one rigid header strip, so they must be "
+            "seated in consecutive holes of a single column, in silkscreen order: "
+            + ", ".join(named_hole(name) for name, _ in pins)
+        )
+
+    pad_xs = [x for x, _ in seated]
+    # The knob sits over the header, and the board reaches further to the left of
+    # it than to the right to make room for the mounting holes.
+    centre_x = (pad_xs[0] + pad_xs[-1]) / 2
+    knob_r = 56.0
+    pcb_w, pcb_h = 182.0, 162.0
+    pcb_x = centre_x - 104.0
+
+    def out(distance: float) -> float:
+        """A y coordinate the given distance out from the board's front edge."""
+        return BOARD_H + distance
+
+    # Measured out from the board: the pins first, then the PCB carrying the
+    # header block and the encoder can, and the knob standing proud of it all.
+    pin_tip_y = out(12)
+    pcb_y = out(46)
+    header_y = pcb_y
+    can_y, can_far_y = out(118), out(146)
+    skirt_y, cap_y = out(160), out(240)
+
+    d.define(
+        '<linearGradient id="knob-cap" x1="0" y1="0" x2="1" y2="1">'
+        '<stop offset="0" stop-color="#8b9094"/>'
+        '<stop offset="0.35" stop-color="#e8ebec"/>'
+        '<stop offset="0.62" stop-color="#5e6367"/>'
+        '<stop offset="1" stop-color="#c0c4c7"/>'
+        "</linearGradient>"
+    )
+    d.define(
+        '<linearGradient id="knob-skirt" x1="0" y1="0" x2="1" y2="0">'
+        '<stop offset="0" stop-color="#0b0b0d"/>'
+        '<stop offset="0.28" stop-color="#3a3a40"/>'
+        '<stop offset="0.6" stop-color="#1a1a1e"/>'
+        '<stop offset="1" stop-color="#08080a"/>'
+        "</linearGradient>"
+    )
+
+    d.text(
+        centre_x,
+        out(284),
+        "KY-040 rotary encoder \u00b7 stands upright in the board",
+        size=13,
+        fill=LABEL_GREY,
+        weight="bold",
+    )
+    d.add(
+        f'<rect x="{pcb_x + 3:.2f}" y="{pcb_y + 5:.2f}" width="{pcb_w}" '
+        f'height="{pcb_h}" rx="7" fill="#000" opacity="0.15"/>'
+    )
+    d.add(
+        f'<rect x="{pcb_x:.2f}" y="{pcb_y:.2f}" width="{pcb_w}" height="{pcb_h}" '
+        f'rx="7" fill="{MODULE_PCB}" stroke="{MODULE_EDGE}" stroke-width="1.5"/>'
+    )
+
+    # The two silkscreened mounting holes down the left edge of the board.
+    for mount_y in (out(78), out(182)):
+        d.add(
+            f'<circle cx="{pcb_x + 18:.2f}" cy="{mount_y:.2f}" r="12" fill="none" '
+            f'stroke="#e8ecef" stroke-width="3.5"/>'
+        )
+        d.add(f'<circle cx="{pcb_x + 18:.2f}" cy="{mount_y:.2f}" r="7.5" fill="#3b4045"/>')
+
+    # Plated encoder can, with the green solder-side edge showing at the end
+    # nearest the pins.
+    d.add(
+        f'<rect x="{centre_x - 35:.2f}" y="{out(110):.2f}" width="70" height="10" '
+        f'rx="2" fill="#1f6f6b" stroke="#12403f" stroke-width="1"/>'
+    )
+    d.add(
+        f'<rect x="{centre_x - 31:.2f}" y="{can_y:.2f}" '
+        f'width="62" height="{can_far_y - can_y:.2f}" '
+        f'rx="3" fill="#b4b8bb" stroke="#7f858a" stroke-width="1.3"/>'
+    )
+
+    # Knurled aluminium knob: a fluted skirt under a brushed, domed cap. It is
+    # taller than the PCB and stands proud of its far edge, as on the real part.
+    d.add(
+        f'<path d="M {centre_x - knob_r:.2f} {cap_y:.2f} L {centre_x - knob_r:.2f} '
+        f'{skirt_y:.2f} A {knob_r} 15 0 0 1 {centre_x + knob_r:.2f} '
+        f'{skirt_y:.2f} L {centre_x + knob_r:.2f} {cap_y:.2f} Z" '
+        f'fill="url(#knob-skirt)"/>'
+    )
+    for index in range(1, 10):
+        flute_x = centre_x - knob_r + index * knob_r / 5
+        d.add(
+            f'<line x1="{flute_x:.2f}" y1="{cap_y:.2f}" x2="{flute_x:.2f}" '
+            f'y2="{skirt_y + 4:.2f}" stroke="#55555c" stroke-width="1.6" '
+            f'opacity="0.55"/>'
+        )
+    d.add(
+        f'<ellipse cx="{centre_x:.2f}" cy="{cap_y:.2f}" rx="{knob_r}" ry="21" '
+        f'fill="url(#knob-cap)" stroke="#6e7377" stroke-width="1.2"/>'
+    )
+    d.add(
+        f'<ellipse cx="{centre_x:.2f}" cy="{cap_y:.2f}" rx="{knob_r - 13:.2f}" ry="14" '
+        f'fill="none" stroke="#f2f4f5" stroke-width="1" opacity="0.35"/>'
+    )
+    d.add(
+        f'<line x1="{centre_x:.2f}" y1="{cap_y - 19:.2f}" x2="{centre_x:.2f}" '
+        f'y2="{cap_y + 19:.2f}" stroke="#4e5357" stroke-width="1" opacity="0.5"/>'
+    )
+
+    # Header: black plastic block on the board with the pins passing through it.
+    d.add(
+        f'<rect x="{pad_xs[0] - 14:.2f}" y="{header_y:.2f}" '
+        f'width="{pad_xs[-1] - pad_xs[0] + 28:.2f}" height="20" rx="2" '
+        f'fill="#0c0e10" stroke="{MODULE_EDGE}" stroke-width="1"/>'
+    )
+
+    for (name, label), pad_x in zip(pins, pad_xs):
+        for width, colour in ((6.0, LEAD_EDGE), (3.4, LEAD_FILL)):
+            d.add(
+                f'<line x1="{pad_x:.2f}" y1="{header_y + 16:.2f}" x2="{pad_x:.2f}" '
+                f'y2="{pin_tip_y:.2f}" stroke="{colour}" stroke-width="{width}" '
+                f'stroke-linecap="round"/>'
+            )
+        # Rotated the opposite way to the real silkscreen, since the module is
+        # drawn from the far side with its pins pointing back at the board.
+        d.add(
+            f'<text transform="translate({pad_x - 3.5:.2f},{out(72):.2f}) '
+            f'rotate(90)" font-family="Helvetica, Arial, sans-serif" font-size="12" '
+            f'font-weight="bold" fill="#eef1f4" text-anchor="start">{esc(label)}</text>'
+        )
+
+        hx, hy = hole(named_hole(name))
+        d.add(
+            f'<path d="M {pad_x:.2f} {pin_tip_y:.2f} L {hx:.2f} {hy:.2f}" '
+            f'fill="none" stroke="{ACCENT}" stroke-width="1.3" '
+            f'stroke-dasharray="5 4" opacity="0.8"/>'
+        )
+        d.add(
+            f'<circle cx="{hx:.2f}" cy="{hy:.2f}" r="8.5" fill="none" '
+            f'stroke="{ACCENT}" stroke-width="2.4"/>'
+        )
+
+
+def draw_speaker(d: Drawing) -> None:
+    """Draw the external mini speaker and its two adapted Dupont leads.
+
+    Like the encoder, it is drawn in front of the board, on the same side as the
+    holes its leads plug into.
+    """
+    centre_x, centre_y = row_x(25), BOARD_H + 113.0
+    radius = 66.0
+    signal_hole = hole(named_hole("speaker.lead.signal"))
+    ground_hole = hole(named_hole("speaker.lead.ground"))
+
+    d.text(
+        centre_x,
+        centre_y + radius + 24,
+        "1 W, 8 \u03a9 mini speaker",
+        size=13,
+        fill=LABEL_GREY,
+        weight="bold",
+    )
+    d.add(
+        f'<circle cx="{centre_x + 4:.2f}" cy="{centre_y + 5:.2f}" r="{radius}" '
+        f'fill="#000" opacity="0.15"/>'
+    )
+    d.add(
+        f'<circle cx="{centre_x:.2f}" cy="{centre_y:.2f}" r="{radius}" '
+        f'fill="#343a40" stroke="#171b1f" stroke-width="2"/>'
+    )
+    d.add(
+        f'<circle cx="{centre_x:.2f}" cy="{centre_y:.2f}" r="{radius - 13}" '
+        f'fill="#1f2428" stroke="#515960" stroke-width="1.5"/>'
+    )
+    d.add(
+        f'<circle cx="{centre_x:.2f}" cy="{centre_y:.2f}" r="{radius - 28}" '
+        f'fill="#454c52" stroke="#171b1f" stroke-width="1.5"/>'
+    )
+    d.add(
+        f'<circle cx="{centre_x - 13:.2f}" cy="{centre_y - 15:.2f}" r="9" '
+        f'fill="#7b838a" opacity="0.55"/>'
+    )
+
+    terminals = (
+        (centre_x - 22, centre_y - radius + 4, signal_hole, WIRE_RED, "+"),
+        (centre_x + 22, centre_y - radius + 4, ground_hole, WIRE_BLACK, "\u2212"),
+    )
+    for start_x, start_y, (end_x, end_y), colour, label in terminals:
+        path = (
+            f"M {start_x:.2f} {start_y:.2f} "
+            f"C {start_x:.2f} {BOARD_H - 30}, {end_x:.2f} {BOARD_H - 95}, "
+            f"{end_x:.2f} {end_y:.2f}"
+        )
+        d.add(
+            f'<path d="{path}" fill="none" stroke="#000" stroke-width="8" '
+            f'opacity="0.13" transform="translate(2,4)"/>'
+        )
+        d.add(
+            f'<path d="{path}" fill="none" stroke="#17171a" stroke-width="7.5" '
+            f'stroke-linecap="round"/>'
+        )
+        d.add(
+            f'<path d="{path}" fill="none" stroke="{colour}" stroke-width="5" '
+            f'stroke-linecap="round"/>'
+        )
+        d.text(
+            start_x,
+            start_y + 16,
+            label,
+            size=12,
+            fill="#ffffff",
+            weight="bold",
+        )
+        d.add(
+            f'<circle cx="{end_x:.2f}" cy="{end_y:.2f}" r="8.5" fill="none" '
+            f'stroke="{ACCENT}" stroke-width="2.4"/>'
+        )
+
+
 def draw_tactile_button(d: Drawing, side_a: str, side_b: str) -> None:
     """A 6 x 6 mm tactile switch seated with all four legs in one half of the board.
 
@@ -957,6 +1277,60 @@ def diagram_project_3_wiring() -> Drawing:
     return d
 
 
+def diagram_project_4_wiring() -> Drawing:
+    d = Drawing(MARGIN_T, MARGIN_B_ENCODER)
+    draw_breadboard(d)
+    draw_xiao(d)
+
+    # Every one of these signals lives on the 5V side of the module, so all
+    # seven wires start in the top half and cross the channel. Each arcs over
+    # the module's corner on its way, and CLK spans the widest gap so it rides
+    # highest over the wires it has to cross.
+    jumpers = (
+        ("encoder-clk", WIRE_YELLOW, (row_x(10), -98)),
+        ("encoder-dt", WIRE_GREEN, (row_x(10), -22)),
+        ("encoder-sw", "#7657a8", (row_x(10), 2)),
+        ("encoder-power", WIRE_ORANGE, (row_x(9), -54)),
+        ("encoder-ground", WIRE_BLACK, (row_x(8), -78)),
+        ("speaker-signal", WIRE_RED, (row_x(16), 30)),
+        ("speaker-ground", WIRE_BLACK, (row_x(15), -100)),
+    )
+    for name, colour, control in jumpers:
+        draw_jumper(
+            d,
+            named_hole(f"jumper.{name}.start"),
+            named_hole(f"jumper.{name}.end"),
+            colour,
+            control,
+        )
+
+    draw_rotary_encoder(d)
+    draw_speaker(d)
+
+    # Every wire starts in column I, so the callouts go behind the board, well
+    # clear of the modules drawn in front of it. Ordering the labels by the hole
+    # they point at keeps their leaders from crossing.
+    callouts = (
+        ("jumper.encoder-ground.start", "GND", WIRE_BLACK, 26),
+        ("jumper.encoder-power.start", "3.3 V", "#c25c00", 144),
+        ("jumper.encoder-clk.start", "GPIO 10", WIRE_YELLOW, 262),
+        ("jumper.encoder-dt.start", "GPIO 9", WIRE_GREEN, 400),
+        ("jumper.encoder-sw.start", "GPIO 8", "#7657a8", 518),
+        ("jumper.speaker-signal.start", "GPIO 20", WIRE_RED, 636),
+    )
+    for name, label, colour, label_x in callouts:
+        coordinate = named_hole(name)
+        callout(
+            d,
+            coordinate,
+            f"{label} \u00b7 {coordinate}",
+            (label_x, LABEL_Y_TOP),
+            colour=colour,
+            anchor="start",
+        )
+    return d
+
+
 def diagram_project_5_wiring() -> Drawing:
     d = Drawing(MARGIN_T_MODULE)
     draw_breadboard(d)
@@ -997,6 +1371,11 @@ PROJECTS = {
         source=PROJECT_GUIDE_DIR / "projects" / "project_3.tex",
         coordinates=PIXEL_MODULE_COORDINATES | BUTTON_COORDINATES,
         outputs={"project_3/wiring.png": diagram_project_3_wiring},
+    ),
+    4: ProjectDiagrams(
+        source=PROJECT_GUIDE_DIR / "projects" / "project_4.tex",
+        coordinates=ENCODER_COORDINATES | SPEAKER_COORDINATES,
+        outputs={"project_4/wiring.png": diagram_project_4_wiring},
     ),
     5: ProjectDiagrams(
         source=PROJECT_GUIDE_DIR / "projects" / "project_5.tex",
