@@ -1,153 +1,199 @@
-\chapter{Python Primer}
-If you're new to Python, this section will give you a few things you should know
-in order to better understand the projects in this guide. This is by no means a
-complete or comprehensive look at the Python language. For that, we recommend looking
-at the official Python site and reading through the \href{https://docs.python.org/3/tutorial/}{tutorial}
-there.
+\chapter{Python Primer} \label{python_primer}
 
-\begin{tcolorbox}
-    Note: for the projects being used here, we are using an implementation of
-    Python known as \href{https://micropython.org/}{MicroPython}. This version
-    is meant to run on microcontrollers with limited resources. It
-    also has built into it libraries for dealing with hardware devices that are
-    not part of the standard CPython distribution. Therefore, not all Python examples
-    you find online will run on your microcontroller and not all projects for a
-    microcontroller can be run on your computer. But a lot of the code can be shared
-    so the lessons you learn here can apply to other Python projects.
+If you are new to programming or need a refresher, this primer covers the essential Python
+and MicroPython concepts used throughout this workshop.
+
+The primer is split into two parts:
+\begin{enumerate}
+    \item \textbf{General Python Fundamentals:} Core syntax, variables, functions, loops, and logic.
+    \item \textbf{MicroPython on Microcontrollers:} How Python controls hardware pins, reads sensors,
+    runs continuous event loops, and uses helper classes.
+\end{enumerate}
+
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!40!black]
+    \textbf{MicroPython vs. Standard Python (CPython):}
+    \href{https://micropython.org/}{MicroPython} is a lightweight, efficient implementation of
+    Python 3 optimized to run directly on microcontrollers like the ESP32-C3. It includes built-in
+    modules like \texttt{machine} for controlling hardware (pins, PWM, analog inputs, and I\textsuperscript{2}C).
+
+    While some large desktop libraries (such as \texttt{pandas} or \texttt{pygame}) are not available
+    in MicroPython, core Python syntax, data structures, and control flow are identical. What you learn
+    here applies directly to general Python programming!
 \end{tcolorbox}
 
-Here is a sample of a small Python script. We will disect and explain what each
-section does below:
 
-\begin{lstlisting}[language=Python,caption=An example Python script]
-def show(message, repeat=1):
-    """This function prints the given message to the
-    console as smany times as specified in the
-    srepeat parameter.
-    """
+\section{Part 1: General Python Fundamentals}
 
-    for iteration in range(0, repeat):
-        print(iteration, message)
+\subsection{A simple Python script}
+Here is a small Python example demonstrating variables, functions, loops, and conditions:
 
-name = input("What is your name: ")
-show(name)
-show(name, repeat=3)
+\begin{lstlisting}[language=Python,caption=A basic Python script]
+def show_message(text, repeat=1):
+    """Prints a message to the console with iteration numbers."""
+    if repeat > 1:
+        print("Repeating", repeat, "times:")
+    
+    for i in range(repeat):
+        print("Iteration", i, ":", text)
+
+# Main program flow
+user_name = "Emily"
+show_message(user_name)
+show_message(user_name, repeat=3)
 \end{lstlisting}
 
-On line 1, we are defining a function named show. This function accepts two parameters,
-message and repeat. The message parameter is required and the repeat parameter
-is optional with a default value of 1.
+\subsection{Breaking down the syntax}
 
-Lines 2 through 5 comprise the docstring for the function. This information is meant
-for programmers to read and explains what the function does. It does not affect how
-the function works.
+\begin{itemize}
+    \item \textbf{Defining functions (\texttt{def}):} On line 1, \texttt{def show\_message(text, repeat=1):}
+    defines a reusable function. The parameter \texttt{text} is required, while \texttt{repeat=1} is an
+    \textbf{optional parameter} with a default value of 1.
+    
+    \item \textbf{Docstrings and comments:} Lines 2 is a docstring (\texttt{"""..."""}) describing what the
+    function does. Lines starting with \texttt{\#} (like line 9) are comments ignored by Python, written
+    to help humans understand the code.
+    
+    \item \textbf{Indentation matters:} Python does not use curly brackets (\texttt{\{ \}}) to enclose code blocks.
+    Instead, it uses \textbf{indentation} (typically 4 spaces). All lines indented under \texttt{def},
+    \texttt{if}, or \texttt{for} belong to that block.
+    
+    \item \textbf{Conditionals (\texttt{if}):} Line 3 checks if \texttt{repeat > 1}. If true, it executes the indented
+    \texttt{print} statement.
+    
+    \item \textbf{Loops and \texttt{range()}:} Line 6 starts a \texttt{for} loop. In Python, \texttt{range(3)}
+    generates the sequence of numbers \texttt{0, 1, 2} (starting at 0 and running for 3 steps). The variable
+    \texttt{i} takes on each value in turn.
+    
+    \item \textbf{Variables and function calls:} Line 10 assigns the string \texttt{"Emily"} to the variable
+    \texttt{user\_name}. Line 11 calls \texttt{show\_message} with default repeat (1 time). Line 12 calls it
+    with \texttt{repeat=3}, which prints 3 iterations.
+\end{itemize}
 
-Line 7 starts a loop. The loop will repeat the statements in the loop body until
-a condition is met. In this case, it will loop until it has performed the operation
-for each repeat.
-
-Line 8 is the body of the loop. This statement will print the message that the user
-passed in to the console along with the iteration number of the loop.
-
-Line 10 prompts the user for their name and saves the result in a variable called
-name.
-
-Line 11 calls our show function which will print the user's name once (the default).
-
-Line 12 calls our show function again, this time saying that we want to repeat the
-loop of printing the name twice.\newline
-
-Running the program, we will see output like this:
+Running this script produces the following console output:
 \begin{verbatim}
-$ python program.py
-What is your name: Emily
-0 Emily
-0 Emily
-1 Emily
-2 Emily
-$
+Iteration 0 : Emily
+Repeating 3 times:
+Iteration 0 : Emily
+Iteration 1 : Emily
+Iteration 2 : Emily
 \end{verbatim}
 
-Another feature that you'll see used often in Python are classes. Classes are a
-convienent way to model something in your program that holds state and implements
-functionality. For example, let's say that we are writing a game about racing go-
-karts. We need to allow each player to have their own kart and keep track of how
-fast it is going, which way they are turning, and allow the kart to speed up and
-slow down. Here is a small class that will help us do that:
 
-\begin{lstlisting}[language=Python,caption=An example of a Python class]
-class Kart:
-    MAXIMUM_SPEED = 100
+\section{Part 2: MicroPython on Hardware}
 
-    def __init__(self):
-        """The kart starts motionless at the beginning"""
-        self._speed = 0
-        self._direction = 0
-        self._acceleration = 0
+\subsection{The microcontroller program anatomy}
+Unlike a desktop script that runs once and exits, a microcontroller typically runs a continuous
+\textbf{event loop} to monitor sensors and update outputs.
 
-    def brake(self):
-        """This is called when the user presses the brake button"""
-        self._acceleration = -5
+Here is an excerpt illustrating the standard hardware pattern from Project 1:
 
-    def accelerate(self):
-        """This is called when the user presses the accelerator button"""
-        self._acceleration = 5
+\begin{lstlisting}[language=Python,caption=A typical MicroPython hardware script]
+import time
+from machine import Pin, ADC, PWM
 
-    def steer(self, direction):
-        """This is called when the user presses left or right"""
-        self._direction = direction
+# Constants
+ADC_MAX = 4095
+PWM_MAX = 1023
 
-    def update(self, ticks):
-        """Update will be called by our game engine and will be
-        provided the number of ticks since it was last called.
-        """
+# Hardware configuration
+sensor = ADC(Pin(2))
+sensor.atten(ADC.ATTN_11DB)
+led = PWM(Pin(20), freq=1000)
 
-        self._speed += self._acceleration * ticks
+try:
+    while True:
+        # Read the light sensor (0 to 4095)
+        level = sensor.read()
 
-        # limit our speed so that we don't go faster than our
-        # kart is allowed to, or slower than 0
-        if self._speed > Kart.MAXIMUM_SPEED:
-            self._speed = Kart.MAXIMUM_SPEED
-        if self._speed < 0:
-            self._speed = 0
+        # Scale sensor reading to LED PWM duty (0 to 1023)
+        duty = (ADC_MAX - level) * PWM_MAX // ADC_MAX
+        led.duty(duty)
+
+        print("Sensor:", level, "PWM Duty:", duty)
+        time.sleep(0.05)
+
+except KeyboardInterrupt:
+    # Clean up when the stop button is pressed in the IDE
+    led.duty(0)
+    led.deinit()
 \end{lstlisting}
 
-Looking at this class, there are 5 methods. The first one (on line 4) is a special
-method that is called by the Python interpreter whenever a new Kart is created. It
-will initialize some variables for this particular Kart object.
+\subsection{Key hardware programming patterns}
 
-You may have noticed that the first method takes a parameter called "self". This
-is the first parameter of all methods in a class in Python. It is automatically passed
-by the interpreter and is a reference to the current object. It lets us access the
-variables that belong to the class, like those we defined in the \_\_init\_\_ method.
+\begin{itemize}
+    \item \textbf{The \texttt{machine} module:} Provides drivers for physical pins. \texttt{Pin(20)} creates a GPIO
+    controller; wrapping it in \texttt{PWM(...)} enables pulse-width modulation for brightness or sound;
+    wrapping it in \texttt{ADC(...)} enables analog voltage measurement.
+    
+    \item \textbf{The continuous \texttt{while True:} loop:} Microcontrollers do not have operating systems with
+    windows and mice. The program enters a loop that repeats indefinitely, reading inputs and controlling outputs.
+    
+    \item \textbf{Integer division (\texttt{//}):} MicroPython uses \texttt{//} for integer division, which discards
+    the remainder. This is useful for calculating whole-number PWM duty values or pixel positions.
+    
+    \item \textbf{Pacing with \texttt{time.sleep()}:} A brief pause (such as 50 milliseconds) prevents the loop from
+    consuming 100\% of the CPU and keeps the console output readable.
+    
+    \item \textbf{Clean exits with \texttt{try / except KeyboardInterrupt}:} When you press the red Stop button in
+    the Viper IDE, it sends a \texttt{KeyboardInterrupt} signal. Wrapping the main loop in \texttt{try / except}
+    allows the program to turn off LEDs and release hardware resources cleanly.
+\end{itemize}
 
-Speaking of the variables in the \_\_init\_\_ method. Notice how we named them all with
-an underscore? This is a convention in Python that says they are private to our class
-and that code written outside of the class shouldn't access them directly. That means
-that our class should provide ways to modify or read these variables via other methods.
+\subsection{Object-Oriented Programming (Classes) in MicroPython}
+As your projects grow, grouping data (state) and functions (behavior) into \textbf{classes} keeps your code
+organized. For example, the \texttt{DebouncedButton} class used in Projects 2, 3, and 4 tracks pin state and
+debounce timers:
 
-The second method starts on line 10. This is called when the player presses the
-brake button on their controller and will set our Kart's acceleration to a negative
-value so that we start to slow down. It modifies the private \_acceleration member of
-the class.
+\begin{lstlisting}[language=Python,caption=A simple helper class for a pushbutton]
+class SimpleButton:
+    def __init__(self, pin_num, action):
+        """Initializes the pin with a pull-up resistor and stores a callback."""
+        self.pin = Pin(pin_num, mode=Pin.IN, pull=Pin.PULL_UP)
+        self.action = action
+        self.press_count = 0
 
-The third starts on line 14. It is the opposite of braking and will start speeding
-our Kart up when the user presses the accelerator. It aslo modifies the private
-\_acceleration member of the class.
+    def check(self):
+        """Checks if the button was pressed (LOW when using pull-up)."""
+        if self.pin.value() == 0:
+            self.press_count += 1
+            self.action(self.press_count)
+\end{lstlisting}
 
-The fourth method, line 18, is again something to deal with user input. This time
-we can see that it takes a second parameter, direction. If the user presses left on
-their controller, then we can expect left to be passed here. The same for right. We
-will modify the private \_direction member here.
+\begin{itemize}
+    \item \textbf{\texttt{\_\_init\_\_} method:} Automatically called when a new object is created (e.g.,
+    \texttt{btn = SimpleButton(21, on\_press)}). It initializes variables unique to that instance.
+    \item \textbf{\texttt{self}:} Refers to the specific object instance, allowing methods to access and modify
+    its own properties (like \texttt{self.press\_count}).
+    \item \textbf{Callbacks (functions as arguments):} Passing a function to \texttt{action} lets the button
+    trigger your custom logic whenever a press is detected.
+\end{itemize}
 
-Finally, we have a fifth method starting on line 22. This method is called by our
-game engine and uses the class members to determine what happens to the Kart throughout
-the game. That is, it is asking the Kart to update itself at a certain moment in time
-(usually once per frame) so that next time it draws it to the screen, it will be
-in the updated location.
 
-Notice in the last method, we are accessing not only our own variables, \_speed, and
-\_acceleration, but we are also reading a class variable, Kart.MAXIMUM\_SPEED. Unlike
-our member variables, a class variable is the same for all instances of a class. It
-is useful here to keep the game fair so that all Karts have the same limitation on
-their speed.
+\section{MicroPython Concepts Reference Map}
+
+Here is a quick reference for Python features you will encounter in each project:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|p{6.5cm}|l|}
+    \hline
+    \textbf{Concept} & \textbf{What it does} & \textbf{Where used} \\
+    \hline
+    \textbf{Tuples \& Lists} & Ordered collections like RGB colors \texttt{(255, 0, 0)} and indexable lists \texttt{pixels[0]} & Projects 2, 4, 5 \\
+    \hline
+    \textbf{Callbacks} & Passing a function name as an argument to run on button events & Projects 2, 3, 4 \\
+    \hline
+    \textbf{Millisecond Timers} & Measuring reaction times and delays using \texttt{time.ticks\_ms()} and \texttt{time.ticks\_diff()} & Projects 2, 5 \\
+    \hline
+    \textbf{State Variables} & Using variables to track game phases (\texttt{STATE\_RED}, \texttt{STATE\_GREEN}) & Project 2 \\
+    \hline
+    \textbf{Hardware Interrupts} & Rapidly detecting rotary encoder clicks without polling & Project 3 \\
+    \hline
+    \textbf{Dictionaries \& JSON} & Key-value data mapping (\texttt{\{"mode": "rainbow"\}}) for network APIs & Project 5 \\
+    \hline
+    \textbf{I\textsuperscript{2}C Communication} & Communicating with multiple digital sensors over a shared 2-wire bus & Project 7 \\
+    \hline
+\end{tabular}
+\caption{Python and MicroPython concepts used across the workshop projects.}
+\label{tab:python_concepts}
+\end{table}

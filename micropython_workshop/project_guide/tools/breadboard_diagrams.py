@@ -25,6 +25,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -115,11 +116,26 @@ SWITCH_BODY = "#2c3237"
 SWITCH_EDGE = "#14181b"
 SWITCH_CAP = "#4b5157"
 
-WIRE_RED = "#d62828"
 WIRE_BLACK = "#2b2b2b"
+WIRE_WHITE = "#f4f4f2"
+WIRE_PURPLE = "#7657a8"
+WIRE_BLUE = "#2563b8"
+WIRE_GREEN = "#1f8a5a"
 WIRE_YELLOW = "#e3b505"
 WIRE_ORANGE = "#ef7d19"
-WIRE_GREEN = "#1f8a5a"
+WIRE_RED = "#d62828"
+
+JUMPER_COLOUR_NAMES = {
+    WIRE_BLACK: "black",
+    WIRE_WHITE: "white",
+    WIRE_PURPLE: "purple",
+    WIRE_BLUE: "blue",
+    WIRE_GREEN: "green",
+    WIRE_YELLOW: "yellow",
+    WIRE_ORANGE: "orange",
+    WIRE_RED: "red",
+}
+JUMPERS_PER_COLOUR = 2
 
 ACCENT = "#1f6f8b"
 ACCENT_DARK_YELLOW = "#9c7a00"
@@ -227,6 +243,30 @@ PROJECT_4_COORDINATES = frozenset(
         "jumper.speaker-ground.end",
     }
 )
+
+OLED_COORDINATES = frozenset(
+    {
+        "oled.header.ground",
+        "oled.header.power",
+        "oled.header.scl",
+        "oled.header.sda",
+    }
+)
+
+MPU6050_COORDINATES = frozenset(
+    {
+        "mpu.header.vcc",
+        "mpu.header.gnd",
+        "mpu.header.scl",
+        "mpu.header.sda",
+        "mpu.header.xda",
+        "mpu.header.xcl",
+        "mpu.header.ad0",
+        "mpu.header.int",
+    }
+)
+
+PROJECT_7_COORDINATES = OLED_COORDINATES | MPU6050_COORDINATES
 
 COORDINATES: dict[str, str] = {}
 
@@ -337,6 +377,23 @@ def read_coordinates(sources: list[Path], required: frozenset[str]) -> dict[str,
     pin_nodes = xiao_pin_nodes(coordinates)
     for connection, column in sorted(connections.items()):
         pin = _xiao_pin_name(column)
+        mpu_sources = {
+            "MPU VCC": "mpu.header.vcc",
+            "MPU GND": "mpu.header.gnd",
+            "MPU SCL": "mpu.header.scl",
+            "MPU SDA": "mpu.header.sda",
+        }
+        if pin in mpu_sources:
+            source_coord = coordinates[mpu_sources[pin]]
+            target_cols = BOTTOM_COLUMNS if source_coord[0] in BOTTOM_COLUMNS else TOP_COLUMNS
+            target_row = int(source_coord[1:])
+            start = coordinates[jumper_holes(connection)[0]]
+            if start[0] not in target_cols or int(start[1:]) != target_row:
+                raise ValueError(
+                    f"{where}: \\connectionrow {connection!r} wires {pin} from {start}, "
+                    f"but {pin} is at row {target_row}"
+                )
+            continue
         if pin not in pin_nodes:
             raise ValueError(
                 f"{where}: \\connectionrow {connection!r} names XIAO pin {pin!r}, "
@@ -406,6 +463,7 @@ class Drawing:
         self.margin_bottom = margin_bottom
         self.parts: list[str] = []
         self.defs: list[str] = []
+        self.jumper_colours: Counter[str] = Counter()
 
     def add(self, markup: str) -> None:
         self.parts.append(markup)
@@ -1079,6 +1137,339 @@ def draw_tactile_button(
         )
 
 
+def draw_oled_module(d: Drawing) -> None:
+    """Draw the 0.96-inch SSD1306 OLED module flat on the board (top-down view)."""
+    pins = (
+        ("oled.header.ground", "GND"),
+        ("oled.header.power", "VCC"),
+        ("oled.header.scl", "SCL"),
+        ("oled.header.sda", "SDA"),
+    )
+    seated = [hole(named_hole(name)) for name, _ in pins]
+    gaps = {second[0] - first[0] for first, second in zip(seated, seated[1:])}
+    if gaps != {PITCH} or len({y for _, y in seated}) != 1:
+        raise ValueError(
+            "the OLED's four pins are one rigid header strip, so they must be "
+            "seated in consecutive holes of a single column, in silkscreen order: "
+            + ", ".join(named_hole(name) for name, _ in pins)
+        )
+
+    pad_xs = [x for x, _ in seated]
+    centre_x = (pad_xs[0] + pad_xs[-1]) / 2
+
+    pcb_w, pcb_h = 150.0, 142.0
+    pcb_x = centre_x - pcb_w / 2
+    # Pins enter row A (y = 366); PCB extends downward
+    pcb_y = COLUMN_Y["A"] - 10.0
+
+    # Module drop shadow
+    d.add(
+        f'<rect x="{pcb_x + 3:.2f}" y="{pcb_y + 4:.2f}" width="{pcb_w}" '
+        f'height="{pcb_h}" rx="6" fill="#000" opacity="0.18"/>'
+    )
+    # PCB body (black)
+    d.add(
+        f'<rect x="{pcb_x:.2f}" y="{pcb_y:.2f}" width="{pcb_w}" height="{pcb_h}" '
+        f'rx="6" fill="{MODULE_PCB}" stroke="{MODULE_EDGE}" stroke-width="1.5"/>'
+    )
+
+    # Corner mounting holes
+    for mx, my in (
+        (pcb_x + 10, pcb_y + 10),
+        (pcb_x + pcb_w - 10, pcb_y + 10),
+        (pcb_x + 10, pcb_y + pcb_h - 10),
+        (pcb_x + pcb_w - 10, pcb_y + pcb_h - 10),
+    ):
+        d.add(
+            f'<circle cx="{mx:.2f}" cy="{my:.2f}" r="6" fill="none" '
+            f'stroke="#e8ecef" stroke-width="1.8"/>'
+        )
+        d.add(f'<circle cx="{mx:.2f}" cy="{my:.2f}" r="3.5" fill="#2c3035"/>')
+
+    # 4 Solder pads for the straight header pins at row A
+    for (name, label), pad_x in zip(pins, pad_xs):
+        pad_y = COLUMN_Y["A"]
+        # Outer copper annular ring
+        d.add(
+            f'<circle cx="{pad_x:.2f}" cy="{pad_y:.2f}" r="5.5" fill="{PAD_FILL}" '
+            f'stroke="#a8843f" stroke-width="1"/>'
+        )
+        # Inner solder joint with pin head
+        d.add(
+            f'<circle cx="{pad_x:.2f}" cy="{pad_y:.2f}" r="3.2" fill="#c6ccd2" '
+            f'stroke="#70767c" stroke-width="0.8"/>'
+        )
+        d.add(f'<circle cx="{pad_x:.2f}" cy="{pad_y:.2f}" r="1.4" fill="#17171a"/>')
+        # Pin label printed on PCB below pad
+        d.text(pad_x, pad_y + 13, label, size=7.5, fill="#eef1f4", anchor="middle", weight="bold")
+
+    # OLED Glass Panel
+    glass_x, glass_y = pcb_x + 14, pcb_y + 26
+    glass_w, glass_h = pcb_w - 28, pcb_h - 38
+    d.add(
+        f'<rect x="{glass_x:.2f}" y="{glass_y:.2f}" width="{glass_w:.2f}" '
+        f'height="{glass_h:.2f}" rx="3" fill="#080b10" stroke="#1f2833" '
+        f'stroke-width="1.3"/>'
+    )
+
+    # Active monochrome OLED display area
+    disp_x, disp_y = glass_x + 6, glass_y + 6
+    disp_w, disp_h = glass_w - 12, glass_h - 12
+    d.add(
+        f'<rect x="{disp_x:.2f}" y="{disp_y:.2f}" width="{disp_w:.2f}" '
+        f'height="{disp_h:.2f}" fill="#040608" stroke="#10141a" stroke-width="0.8"/>'
+    )
+
+    # Monochrome game graphics
+    d.add(
+        f'<line x1="{disp_x + 4:.2f}" y1="{disp_y + 14:.2f}" '
+        f'x2="{disp_x + disp_w - 4:.2f}" y2="{disp_y + 14:.2f}" stroke="#ffffff" '
+        f'stroke-width="0.7" opacity="0.5"/>'
+    )
+    d.text(
+        disp_x + disp_w / 2,
+        disp_y + 10,
+        "TILTING MAZE",
+        size=8,
+        fill="#ffffff",
+        anchor="middle",
+        weight="bold",
+    )
+
+    # Monochrome maze walls
+    d.add(
+        f'<line x1="{disp_x + 16:.2f}" y1="{disp_y + 18:.2f}" '
+        f'x2="{disp_x + 16:.2f}" y2="{disp_y + 44:.2f}" stroke="#ffffff" '
+        f'stroke-width="1.8"/>'
+    )
+    d.add(
+        f'<line x1="{disp_x + 38:.2f}" y1="{disp_y + 24:.2f}" '
+        f'x2="{disp_x + 38:.2f}" y2="{disp_y + 54:.2f}" stroke="#ffffff" '
+        f'stroke-width="1.8"/>'
+    )
+    d.add(
+        f'<line x1="{disp_x + 62:.2f}" y1="{disp_y + 18:.2f}" '
+        f'x2="{disp_x + 62:.2f}" y2="{disp_y + 42:.2f}" stroke="#ffffff" '
+        f'stroke-width="1.8"/>'
+    )
+    d.add(
+        f'<line x1="{disp_x + 16:.2f}" y1="{disp_y + 44:.2f}" '
+        f'x2="{disp_x + 62:.2f}" y2="{disp_y + 44:.2f}" stroke="#ffffff" '
+        f'stroke-width="1.8"/>'
+    )
+
+    # Ball sprite (filled white)
+    d.add(
+        f'<circle cx="{disp_x + 27:.2f}" cy="{disp_y + 30:.2f}" r="3.8" '
+        f'fill="#ffffff"/>'
+    )
+
+    # Checkered goal area
+    d.add(
+        f'<rect x="{disp_x + 66:.2f}" y="{disp_y + 42:.2f}" width="16" '
+        f'height="10" fill="none" stroke="#ffffff" stroke-width="1"/>'
+    )
+    for gx in range(int(disp_x + 68), int(disp_x + 80), 3):
+        for gy in range(int(disp_y + 44), int(disp_y + 51), 3):
+            d.add(f'<rect x="{gx}" y="{gy}" width="1.4" height="1.4" fill="#ffffff"/>')
+    d.text(
+        disp_x + 74,
+        disp_y + 50,
+        "GOAL",
+        size=5.5,
+        fill="#ffffff",
+        anchor="middle",
+        weight="bold",
+    )
+
+
+def draw_mpu6050(d: Drawing) -> None:
+    """Draw the MPU-6050 GY-521 (ITG/MPU) breakout board flat on the board (top-down view)."""
+    pins = (
+        ("mpu.header.int", "INT"),
+        ("mpu.header.ad0", "AD0"),
+        ("mpu.header.xcl", "XCL"),
+        ("mpu.header.xda", "XDA"),
+        ("mpu.header.sda", "SDA"),
+        ("mpu.header.scl", "SCL"),
+        ("mpu.header.gnd", "GND"),
+        ("mpu.header.vcc", "VCC"),
+    )
+    seated = [hole(named_hole(name)) for name, _ in pins]
+    gaps = {second[0] - first[0] for first, second in zip(seated, seated[1:])}
+    if gaps != {PITCH} or len({y for _, y in seated}) != 1:
+        raise ValueError(
+            "the MPU-6050's eight pins are one rigid header strip, so they must be "
+            "seated in consecutive holes of a single column, in silkscreen order: "
+            + ", ".join(named_hole(name) for name, _ in pins)
+        )
+
+    pad_xs = [x for x, _ in seated]
+    centre_x = (pad_xs[0] + pad_xs[-1]) / 2
+    pcb_w, pcb_h = (len(pins) - 1) * PITCH + 34.0, 102.0
+    pcb_x = centre_x - pcb_w / 2
+    # Pins enter row A (y = 366); PCB extends downward
+    pcb_y = COLUMN_Y["A"] - 10.0
+
+    # PCB drop shadow
+    d.add(
+        f'<rect x="{pcb_x + 3:.2f}" y="{pcb_y + 4:.2f}" width="{pcb_w}" '
+        f'height="{pcb_h}" rx="5" fill="#000" opacity="0.18"/>'
+    )
+    # Royal blue PCB body
+    d.add(
+        f'<rect x="{pcb_x:.2f}" y="{pcb_y:.2f}" width="{pcb_w}" height="{pcb_h}" '
+        f'rx="5" fill="#145da0" stroke="#0c3d6c" stroke-width="1.5"/>'
+    )
+
+    # 8 Solder pads for the straight header pins at row A (INT -> VCC)
+    for (name, label), pad_x in zip(pins, pad_xs):
+        pad_y = COLUMN_Y["A"]
+        # Outer copper annular ring
+        d.add(
+            f'<circle cx="{pad_x:.2f}" cy="{pad_y:.2f}" r="5.5" fill="{PAD_FILL}" '
+            f'stroke="#a8843f" stroke-width="1"/>'
+        )
+        # Inner solder joint with pin head
+        d.add(
+            f'<circle cx="{pad_x:.2f}" cy="{pad_y:.2f}" r="3.2" fill="#c6ccd2" '
+            f'stroke="#70767c" stroke-width="0.8"/>'
+        )
+        d.add(f'<circle cx="{pad_x:.2f}" cy="{pad_y:.2f}" r="1.4" fill="#17171a"/>')
+        # Pin label printed on PCB below pad
+        d.text(pad_x, pad_y + 13, label, size=7, fill="#ffffff", anchor="middle", weight="bold")
+
+    # InvenSense MPU-6050 main QFN chip
+    chip_w = 38.0
+    chip_x = centre_x - chip_w / 2 - 2
+    chip_y = pcb_y + 26
+    d.add(
+        f'<rect x="{chip_x:.2f}" y="{chip_y:.2f}" width="{chip_w}" '
+        f'height="{chip_w}" rx="2" fill="#1a1c1e" stroke="#0e0f10" stroke-width="1"/>'
+    )
+    # QFN lead pads on edges
+    for i in range(4):
+        offset = 5 + i * 8
+        d.add(f'<rect x="{chip_x + offset:.2f}" y="{chip_y - 1.5:.2f}" width="3.5" height="1.5" fill="#silver"/>')
+        d.add(f'<rect x="{chip_x + offset:.2f}" y="{chip_y + chip_w:.2f}" width="3.5" height="1.5" fill="#silver"/>')
+        d.add(f'<rect x="{chip_x - 1.5:.2f}" y="{chip_y + offset:.2f}" width="1.5" height="3.5" fill="#silver"/>')
+        d.add(f'<rect x="{chip_x + chip_w:.2f}" y="{chip_y + offset:.2f}" width="1.5" height="3.5" fill="#silver"/>')
+    # Pin 1 dot
+    d.add(
+        f'<circle cx="{chip_x + 5:.2f}" cy="{chip_y + 5:.2f}" r="1.8" fill="#8d9499"/>'
+    )
+    d.text(
+        chip_x + chip_w / 2,
+        chip_y + 15,
+        "INVENSENSE",
+        size=4.2,
+        fill="#b0b5b9",
+        anchor="middle",
+        weight="bold",
+    )
+    d.text(
+        chip_x + chip_w / 2,
+        chip_y + 23,
+        "MPU-6050",
+        size=5.5,
+        fill="#ffffff",
+        anchor="middle",
+        weight="bold",
+    )
+
+    # Tantalum capacitor (orange/tan SMD rectangle) below chip
+    cap_x = centre_x - 18
+    cap_y = pcb_y + 68
+    d.add(
+        f'<rect x="{cap_x:.2f}" y="{cap_y:.2f}" width="{20:.2f}" height="{13:.2f}" '
+        f'rx="1.5" fill="#c97834" stroke="#8d4a15" stroke-width="0.8"/>'
+    )
+    d.add(
+        f'<rect x="{cap_x:.2f}" y="{cap_y:.2f}" width="{4:.2f}" height="13" '
+        f'fill="#7d3b08"/>'
+    )
+    d.text(cap_x + 11, cap_y + 9, "106C", size=5, fill="#fcedda", anchor="middle", weight="bold")
+
+    # SMD passive resistors / capacitors around the chip
+    for rx, ry, rlbl in (
+        (chip_x - 14, pcb_y + 28, "102"),
+        (chip_x - 14, pcb_y + 40, "472"),
+        (chip_x + chip_w + 6, pcb_y + 28, "222"),
+        (chip_x + chip_w + 6, pcb_y + 40, "222"),
+    ):
+        d.add(f'<rect x="{rx:.2f}" y="{ry:.2f}" width="8.5" height="5" rx="0.8" fill="#1e2022" stroke="#555" stroke-width="0.5"/>')
+        d.text(rx + 4.25, ry + 4, rlbl, size=3.5, fill="#bbb", anchor="middle")
+
+    for cx, cy in (
+        (chip_x - 14, pcb_y + 52),
+        (chip_x + chip_w + 6, pcb_y + 52),
+    ):
+        d.add(f'<rect x="{cx:.2f}" y="{cy:.2f}" width="8.5" height="5" rx="0.8" fill="#c4aa82" stroke="#8c7554" stroke-width="0.5"/>')
+
+    # Voltage regulator & power LED on right side near VCC (pad_xs[7])
+    vreg_x = pad_xs[7] - 6
+    vreg_y = pcb_y + 58
+    d.add(
+        f'<rect x="{vreg_x:.2f}" y="{vreg_y:.2f}" width="12" height="8.5" rx="1.2" '
+        f'fill="#1f2224" stroke="#111" stroke-width="0.7"/>'
+    )
+    d.text(vreg_x + 6, vreg_y + 6.2, "DE=A1D", size=3.2, fill="#aaa", anchor="middle")
+    d.add(
+        f'<rect x="{pad_xs[6] - 3.5:.2f}" y="{pcb_y + 58:.2f}" width="7" height="5" rx="0.8" '
+        f'fill="#2a8038" stroke="#1f5a28" stroke-width="0.7"/>'
+    )
+
+    # 2 Mounting holes along the bottom edge
+    for mx in (pcb_x + 13, pcb_x + pcb_w - 13):
+        d.add(
+            f'<circle cx="{mx:.2f}" cy="{pcb_y + pcb_h - 14:.2f}" r="7" fill="none" '
+            f'stroke="#d8b268" stroke-width="1.8"/>'
+        )
+        d.add(f'<circle cx="{mx:.2f}" cy="{pcb_y + pcb_h - 14:.2f}" r="4" fill="#2c3035"/>')
+
+    # Silkscreen "ITG/MPU" and "HC" along the bottom
+    d.text(
+        pcb_x + 24,
+        pcb_y + pcb_h - 11,
+        "HC",
+        size=7,
+        fill="#ffffff",
+        anchor="start",
+        weight="bold",
+    )
+    d.text(
+        pcb_x + 40,
+        pcb_y + pcb_h - 11,
+        "ITG/MPU",
+        size=7.5,
+        fill="#ffffff",
+        anchor="start",
+        weight="bold",
+    )
+
+    # Coordinate axes silkscreen on top-left near INT (pad_xs[0])
+    axis_x = pcb_x + 16
+    axis_y = pcb_y + 36
+    d.add(
+        f'<line x1="{axis_x:.2f}" y1="{axis_y:.2f}" x2="{axis_x + 12:.2f}" '
+        f'y2="{axis_y:.2f}" stroke="#ffffff" stroke-width="1.1"/>'
+    )
+    d.add(
+        f'<polygon points="{axis_x + 12:.2f},{axis_y - 2:.2f} {axis_x + 15:.2f},{axis_y:.2f} {axis_x + 12:.2f},{axis_y + 2:.2f}" fill="#ffffff"/>'
+    )
+    d.text(axis_x + 17, axis_y + 2.5, "X", size=5.5, fill="#ffffff", anchor="start", weight="bold")
+    d.add(
+        f'<line x1="{axis_x:.2f}" y1="{axis_y:.2f}" x2="{axis_x:.2f}" '
+        f'y2="{axis_y + 10:.2f}" stroke="#ffffff" stroke-width="1.1"/>'
+    )
+    d.add(
+        f'<polygon points="{axis_x - 2:.2f},{axis_y + 10:.2f} {axis_x:.2f},{axis_y + 13:.2f} {axis_x + 2:.2f},{axis_y + 10:.2f}" fill="#ffffff"/>'
+    )
+    d.text(axis_x, axis_y + 17, "Y", size=5.5, fill="#ffffff", anchor="middle", weight="bold")
+    d.add(f'<circle cx="{axis_x:.2f}" cy="{axis_y:.2f}" r="2.5" fill="none" stroke="#ffffff" stroke-width="0.9"/>')
+    d.add(f'<circle cx="{axis_x:.2f}" cy="{axis_y:.2f}" r="0.9" fill="#ffffff"/>')
+
+
 def _quad_point(p0, c, p1, t):
     u = 1 - t
     return (
@@ -1089,6 +1480,20 @@ def _quad_point(p0, c, p1, t):
 
 def draw_jumper(d: Drawing, start: str, end: str, colour: str, control: tuple[float, float]) -> None:
     """A jumper wire drawn as an arc that never crosses the module body."""
+    try:
+        colour_name = JUMPER_COLOUR_NAMES[colour]
+    except KeyError as exc:
+        available = ", ".join(JUMPER_COLOUR_NAMES.values())
+        raise ValueError(
+            f"jumper {start}->{end} uses unavailable colour {colour!r}; "
+            f"choose from {available}"
+        ) from exc
+    d.jumper_colours[colour_name] += 1
+    if d.jumper_colours[colour_name] > JUMPERS_PER_COLOUR:
+        raise ValueError(
+            f"diagram uses more than {JUMPERS_PER_COLOUR} {colour_name} jumpers"
+        )
+
     p0 = hole(start)
     p1 = hole(end)
     left, top, right, bottom = xiao_rect()
@@ -1331,7 +1736,7 @@ def diagram_project_3_wiring() -> Drawing:
     jumpers = (
         ("encoder-clk", WIRE_YELLOW, (row_x(10), -98)),
         ("encoder-dt", WIRE_GREEN, (row_x(10), -22)),
-        ("encoder-sw", "#7657a8", (row_x(10), 2)),
+        ("encoder-sw", WIRE_PURPLE, (row_x(10), 2)),
         ("encoder-power", WIRE_ORANGE, (row_x(9), -54)),
         ("encoder-ground", WIRE_BLACK, (row_x(8), -78)),
         ("speaker-signal", WIRE_RED, (row_x(16), 30)),
@@ -1357,7 +1762,7 @@ def diagram_project_3_wiring() -> Drawing:
         ("jumper.encoder-power.start", "3.3 V", "#c25c00", 144),
         ("jumper.encoder-clk.start", "GPIO 10", WIRE_YELLOW, 262),
         ("jumper.encoder-dt.start", "GPIO 9", WIRE_GREEN, 400),
-        ("jumper.encoder-sw.start", "GPIO 8", "#7657a8", 518),
+        ("jumper.encoder-sw.start", "GPIO 8", WIRE_PURPLE, 518),
         ("jumper.speaker-signal.start", "GPIO 20", WIRE_RED, 636),
     )
     for name, label, colour, label_x in callouts:
@@ -1431,7 +1836,7 @@ def diagram_project_4_wiring() -> Drawing:
         d,
         named_hole("jumper.pad2-signal.start"),
         named_hole("jumper.pad2-signal.end"),
-        "#7657a8",
+        WIRE_PURPLE,
         (row_x(12), COLUMN_Y["A"] + 15),
     )
 
@@ -1447,14 +1852,14 @@ def diagram_project_4_wiring() -> Drawing:
         d,
         named_hole("jumper.pad1-ground.start"),
         named_hole("jumper.pad1-ground.end"),
-        WIRE_BLACK,
+        WIRE_WHITE,
         (row_x(16), 160),
     )
     draw_jumper(
         d,
         named_hole("jumper.pad2-ground.start"),
         named_hole("jumper.pad2-ground.end"),
-        WIRE_BLACK,
+        WIRE_PURPLE,
         (row_x(20), 160),
     )
 
@@ -1477,7 +1882,7 @@ def diagram_project_4_wiring() -> Drawing:
         d,
         named_hole("jumper.pixels-ground.start"),
         named_hole("jumper.pixels-ground.end"),
-        WIRE_BLACK,
+        WIRE_BLUE,
         (row_x(24), 75),
     )
 
@@ -1495,7 +1900,7 @@ def diagram_project_4_wiring() -> Drawing:
         d,
         named_hole("jumper.speaker-ground.start"),
         named_hole("jumper.speaker-ground.end"),
-        WIRE_BLACK,
+        WIRE_WHITE,
         (row_x(28), 160),
     )
 
@@ -1517,7 +1922,7 @@ def diagram_project_4_wiring() -> Drawing:
     pad1_sig = named_hole("jumper.pad1-signal.start")
     pad0_sig = named_hole("jumper.pad0-signal.start")
 
-    callout(d, pad2_sig, f"GPIO 6 \u00b7 {pad2_sig}", (26, LABEL_Y_BOTTOM), colour="#7657a8", anchor="start")
+    callout(d, pad2_sig, f"GPIO 6 \u00b7 {pad2_sig}", (26, LABEL_Y_BOTTOM), colour=WIRE_PURPLE, anchor="start")
     callout(d, pad1_sig, f"GPIO 7 \u00b7 {pad1_sig}", (160, LABEL_Y_BOTTOM), colour=WIRE_GREEN, anchor="start")
     callout(d, pad0_sig, f"GPIO 21 \u00b7 {pad0_sig}", (294, LABEL_Y_BOTTOM), colour=ACCENT_DARK_YELLOW, anchor="start")
 
@@ -1537,6 +1942,90 @@ def diagram_project_5_wiring() -> Drawing:
     callout(d, power, f"5 V \u00b7 {power}", (26, -30), colour=WIRE_RED, anchor="start")
     callout(d, ground, f"GND \u00b7 {ground}", (150, -30), colour=WIRE_BLACK, anchor="start")
     callout(d, data, f"GPIO 20 \u00b7 {data}", (265, -30), colour=WIRE_GREEN, anchor="start")
+    return d
+
+
+def diagram_project_7_wiring() -> Drawing:
+    d = Drawing(70, 120)
+    draw_breadboard(d)
+    draw_xiao(d)
+
+    draw_mpu6050(d)
+    draw_oled_module(d)
+
+    # MPU-6050 Jumpers (connecting to row E holes 16-19: SDA, SCL, GND, VCC)
+    draw_jumper(
+        d,
+        named_hole("jumper.mpu-ground.start"),
+        named_hole("jumper.mpu-ground.end"),
+        WIRE_BLACK,
+        (row_x(10), -70),
+    )
+    draw_jumper(
+        d,
+        named_hole("jumper.mpu-power.start"),
+        named_hole("jumper.mpu-power.end"),
+        WIRE_ORANGE,
+        (row_x(11), -45),
+    )
+    draw_jumper(
+        d,
+        named_hole("jumper.mpu-sda.start"),
+        named_hole("jumper.mpu-sda.end"),
+        WIRE_GREEN,
+        (row_x(10), COLUMN_Y["B"] + 15),
+    )
+    draw_jumper(
+        d,
+        named_hole("jumper.mpu-scl.start"),
+        named_hole("jumper.mpu-scl.end"),
+        WIRE_YELLOW,
+        (row_x(11), COLUMN_Y["C"] + 15),
+    )
+
+    # OLED Jumpers daisy-chained from MPU rows 18, 19, 17, and 16.
+    draw_jumper(
+        d,
+        named_hole("jumper.oled-ground.start"),
+        named_hole("jumper.oled-ground.end"),
+        WIRE_BLACK,
+        (row_x(22), COLUMN_Y["D"] - 2),
+    )
+    draw_jumper(
+        d,
+        named_hole("jumper.oled-power.start"),
+        named_hole("jumper.oled-power.end"),
+        WIRE_ORANGE,
+        (row_x(23), COLUMN_Y["C"] + 4),
+    )
+    draw_jumper(
+        d,
+        named_hole("jumper.oled-scl.start"),
+        named_hole("jumper.oled-scl.end"),
+        WIRE_YELLOW,
+        (row_x(22), COLUMN_Y["C"] + 10),
+    )
+    draw_jumper(
+        d,
+        named_hole("jumper.oled-sda.start"),
+        named_hole("jumper.oled-sda.end"),
+        WIRE_GREEN,
+        (row_x(22), COLUMN_Y["B"] + 10),
+    )
+
+    # Callouts
+    mpu_gnd = named_hole("jumper.mpu-ground.start")
+    mpu_pwr = named_hole("jumper.mpu-power.start")
+    callout(d, mpu_gnd, f"GND \u00b7 {mpu_gnd}", (26, -30), colour=WIRE_BLACK, anchor="start")
+    callout(d, mpu_pwr, f"3.3 V \u00b7 {mpu_pwr}", (160, -30), colour="#c25c00", anchor="start")
+
+    mpu_sda = named_hole("jumper.mpu-sda.start")
+    mpu_scl = named_hole("jumper.mpu-scl.start")
+
+    callout_y = LABEL_Y_BOTTOM + 45
+    callout(d, mpu_sda, f"GPIO 6 (SDA) \u00b7 {mpu_sda}", (26, callout_y), colour=WIRE_GREEN, anchor="start")
+    callout(d, mpu_scl, f"GPIO 7 (SCL) \u00b7 {mpu_scl}", (200, callout_y), colour=WIRE_YELLOW, anchor="start")
+
     return d
 
 
@@ -1579,6 +2068,11 @@ PROJECTS = {
         source=PROJECT_GUIDE_DIR / "projects" / "project_5.tex",
         coordinates=PIXEL_MODULE_COORDINATES,
         outputs={"project_5/wiring.png": diagram_project_5_wiring},
+    ),
+    7: ProjectDiagrams(
+        source=PROJECT_GUIDE_DIR / "projects" / "project_7.tex",
+        coordinates=PROJECT_7_COORDINATES,
+        outputs={"project_7/wiring.png": diagram_project_7_wiring},
     ),
 }
 

@@ -1,14 +1,14 @@
 % Telling the 220 ohm and 10k ohm resistors apart. The resistors are drawn with
 % TikZ rather than photographed because the band colors have to stay readable
 % when the guide is printed in a classroom.
-\definecolor{bodymetal}{HTML}{9FC2E8}
+\providecolor{bodymetal}{HTML}{9FC2E8}
 % xcolor's brown is a light tan that reads as gold next to the other bands.
-\definecolor{bandbrown}{HTML}{7B4A12}
+\providecolor{bandbrown}{HTML}{7B4A12}
 
 % \resistorglyph{band 1}{band 2}{band 3}{band 4}{band 5}
 % The kit's resistors carry one band on each end bulge and three across the
 % middle, all at roughly even spacing, so the geometry here is fixed.
-\newcommand{\resistorglyph}[5]{%
+\providecommand{\resistorglyph}[5]{%
 \begin{tikzpicture}[x=1cm, y=1cm]
     \draw[line width=1pt, gray!50!black] (-0.5,0.3) -- (2.8,0.3);
     \draw[fill=bodymetal, draw=black!55] (0.24,0.04) rectangle (2.06,0.56);
@@ -23,7 +23,7 @@
 }
 
 % \resistorcell{value}{band 1}{band 2}{band 3}{band 4}{band 5}{caption}
-\newcommand{\resistorcell}[7]{%
+\providecommand{\resistorcell}[7]{%
 \begin{tabular}{c}
     \textbf{#1} \\[4pt]
     \resistorglyph{#2}{#3}{#4}{#5}{#6} \\[2pt]
