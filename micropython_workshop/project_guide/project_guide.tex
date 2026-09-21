@@ -137,9 +137,16 @@
 
 \tableofcontents
 
+% Unnumbered front matter
+\setcounter{secnumdepth}{-1}
 \input{introduction/introduction.tex}
 \input{electronics_preamble/electronics_preamble.tex}
 \input{micropython_ide/micropython_ide.tex}
+
+% Numbered projects
+\setcounter{secnumdepth}{2}
+\setcounter{chapter}{0}
+\renewcommand{\chaptername}{Project}
 
 \input{projects/project_1.tex}
 \input{projects/project_2.tex}
