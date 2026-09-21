@@ -132,8 +132,8 @@
 
 \begin{document}
 
-% Include the title page PDF if it exists; skip gracefully during CI when not yet present
-\IfFileExists{title_page.pdf}{\includepdf{title_page.pdf}}{}
+% Include the title page PDF
+{\includepdf{title_page.pdf}}
 
 \tableofcontents
 
