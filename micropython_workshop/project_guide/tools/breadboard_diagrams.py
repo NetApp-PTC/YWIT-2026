@@ -50,7 +50,7 @@ COLUMN_Y = {
     "A": 366,
 }
 
-RAIL_Y = {"top+": 30, "top-": 54, "bot-": 414, "bot+": 438}
+RAIL_Y = {"top-": 30, "top+": 54, "bot-": 414, "bot+": 438}
 
 NUM_STRIP_TOP_Y = 78
 NUM_STRIP_BOT_Y = 390
@@ -266,7 +266,23 @@ MPU6050_COORDINATES = frozenset(
     }
 )
 
-PROJECT_7_COORDINATES = OLED_COORDINATES | MPU6050_COORDINATES
+PROJECT_6_COORDINATES = OLED_COORDINATES | MPU6050_COORDINATES
+
+PROJECT_7_COORDINATES = (
+    OLED_COORDINATES
+    | ENCODER_COORDINATES
+    | SPEAKER_COORDINATES
+    | {
+        "jumper.mcu-ground.start",
+        "jumper.mcu-ground.end",
+        "jumper.encoder-ground.start",
+        "jumper.encoder-ground.end",
+        "jumper.oled-ground.start",
+        "jumper.oled-ground.end",
+        "jumper.speaker-ground.start",
+        "jumper.speaker-ground.end",
+    }
+)
 
 COORDINATES: dict[str, str] = {}
 
@@ -537,8 +553,8 @@ def draw_breadboard(d: Drawing) -> None:
     # Power rails: 25 holes each, printed in groups of five.
     rail_rows = [r for r in range(2, ROWS + 1) if (r - 2) % 6 != 5]
     for rail, colour in (
-        ("top+", RAIL_RED),
         ("top-", RAIL_BLUE),
+        ("top+", RAIL_RED),
         ("bot-", RAIL_BLUE),
         ("bot+", RAIL_RED),
     ):
@@ -1137,7 +1153,111 @@ def draw_tactile_button(
         )
 
 
-def draw_oled_module(d: Drawing) -> None:
+def _oled_screen_maze(d: Drawing, x: float, y: float, w: float, h: float) -> None:
+    """The maze game as it looks on the panel: title, walls, ball, and goal."""
+    d.add(
+        f'<line x1="{x + 4:.2f}" y1="{y + 14:.2f}" '
+        f'x2="{x + w - 4:.2f}" y2="{y + 14:.2f}" stroke="#ffffff" '
+        f'stroke-width="0.7" opacity="0.5"/>'
+    )
+    d.text(
+        x + w / 2,
+        y + 10,
+        "TILTING MAZE",
+        size=8,
+        fill="#ffffff",
+        anchor="middle",
+        weight="bold",
+    )
+
+    # Monochrome maze walls
+    d.add(
+        f'<line x1="{x + 16:.2f}" y1="{y + 18:.2f}" '
+        f'x2="{x + 16:.2f}" y2="{y + 44:.2f}" stroke="#ffffff" '
+        f'stroke-width="1.8"/>'
+    )
+    d.add(
+        f'<line x1="{x + 38:.2f}" y1="{y + 24:.2f}" '
+        f'x2="{x + 38:.2f}" y2="{y + 54:.2f}" stroke="#ffffff" '
+        f'stroke-width="1.8"/>'
+    )
+    d.add(
+        f'<line x1="{x + 62:.2f}" y1="{y + 18:.2f}" '
+        f'x2="{x + 62:.2f}" y2="{y + 42:.2f}" stroke="#ffffff" '
+        f'stroke-width="1.8"/>'
+    )
+    d.add(
+        f'<line x1="{x + 16:.2f}" y1="{y + 44:.2f}" '
+        f'x2="{x + 62:.2f}" y2="{y + 44:.2f}" stroke="#ffffff" '
+        f'stroke-width="1.8"/>'
+    )
+
+    # Ball sprite (filled white)
+    d.add(f'<circle cx="{x + 27:.2f}" cy="{y + 30:.2f}" r="3.8" fill="#ffffff"/>')
+
+    # Checkered goal area
+    d.add(
+        f'<rect x="{x + 66:.2f}" y="{y + 42:.2f}" width="16" '
+        f'height="10" fill="none" stroke="#ffffff" stroke-width="1"/>'
+    )
+    for gx in range(int(x + 68), int(x + 80), 3):
+        for gy in range(int(y + 44), int(y + 51), 3):
+            d.add(f'<rect x="{gx}" y="{gy}" width="1.4" height="1.4" fill="#ffffff"/>')
+    d.text(
+        x + 74,
+        y + 50,
+        "GOAL",
+        size=5.5,
+        fill="#ffffff",
+        anchor="middle",
+        weight="bold",
+    )
+
+
+def _oled_screen_clock(d: Drawing, x: float, y: float, w: float, h: float) -> None:
+    """The desk companion's clock screen: big time, date, and weather line."""
+    d.text(
+        x + w / 2,
+        y + 26,
+        "7:12",
+        size=22,
+        fill="#ffffff",
+        anchor="middle",
+        weight="bold",
+    )
+    d.text(
+        x + w / 2,
+        y + 39,
+        "SAT SEP 20",
+        size=7,
+        fill="#ffffff",
+        anchor="middle",
+        weight="bold",
+    )
+    d.add(
+        f'<line x1="{x + 6:.2f}" y1="{y + 44:.2f}" x2="{x + w - 6:.2f}" '
+        f'y2="{y + 44:.2f}" stroke="#ffffff" stroke-width="0.7" opacity="0.5"/>'
+    )
+    d.text(
+        x + w / 2,
+        y + 54,
+        "58F CLOUDY",
+        size=7.5,
+        fill="#ffffff",
+        anchor="middle",
+        weight="bold",
+    )
+    # The alarm bell glyph the firmware draws when an alarm is armed.
+    d.add(
+        f'<path d="M {x + 8:.2f} {y + 12:.2f} l 0 -4 a 3 3 0 0 1 6 0 l 0 4 l 1.5 2 '
+        f'l -9 0 Z" fill="#ffffff"/>'
+    )
+
+
+def draw_oled_module(
+    d: Drawing,
+    draw_screen: Callable[[Drawing, float, float, float, float], None] = _oled_screen_maze,
+) -> None:
     """Draw the 0.96-inch SSD1306 OLED module flat on the board (top-down view)."""
     pins = (
         ("oled.header.ground", "GND"),
@@ -1220,67 +1340,7 @@ def draw_oled_module(d: Drawing) -> None:
         f'height="{disp_h:.2f}" fill="#040608" stroke="#10141a" stroke-width="0.8"/>'
     )
 
-    # Monochrome game graphics
-    d.add(
-        f'<line x1="{disp_x + 4:.2f}" y1="{disp_y + 14:.2f}" '
-        f'x2="{disp_x + disp_w - 4:.2f}" y2="{disp_y + 14:.2f}" stroke="#ffffff" '
-        f'stroke-width="0.7" opacity="0.5"/>'
-    )
-    d.text(
-        disp_x + disp_w / 2,
-        disp_y + 10,
-        "TILTING MAZE",
-        size=8,
-        fill="#ffffff",
-        anchor="middle",
-        weight="bold",
-    )
-
-    # Monochrome maze walls
-    d.add(
-        f'<line x1="{disp_x + 16:.2f}" y1="{disp_y + 18:.2f}" '
-        f'x2="{disp_x + 16:.2f}" y2="{disp_y + 44:.2f}" stroke="#ffffff" '
-        f'stroke-width="1.8"/>'
-    )
-    d.add(
-        f'<line x1="{disp_x + 38:.2f}" y1="{disp_y + 24:.2f}" '
-        f'x2="{disp_x + 38:.2f}" y2="{disp_y + 54:.2f}" stroke="#ffffff" '
-        f'stroke-width="1.8"/>'
-    )
-    d.add(
-        f'<line x1="{disp_x + 62:.2f}" y1="{disp_y + 18:.2f}" '
-        f'x2="{disp_x + 62:.2f}" y2="{disp_y + 42:.2f}" stroke="#ffffff" '
-        f'stroke-width="1.8"/>'
-    )
-    d.add(
-        f'<line x1="{disp_x + 16:.2f}" y1="{disp_y + 44:.2f}" '
-        f'x2="{disp_x + 62:.2f}" y2="{disp_y + 44:.2f}" stroke="#ffffff" '
-        f'stroke-width="1.8"/>'
-    )
-
-    # Ball sprite (filled white)
-    d.add(
-        f'<circle cx="{disp_x + 27:.2f}" cy="{disp_y + 30:.2f}" r="3.8" '
-        f'fill="#ffffff"/>'
-    )
-
-    # Checkered goal area
-    d.add(
-        f'<rect x="{disp_x + 66:.2f}" y="{disp_y + 42:.2f}" width="16" '
-        f'height="10" fill="none" stroke="#ffffff" stroke-width="1"/>'
-    )
-    for gx in range(int(disp_x + 68), int(disp_x + 80), 3):
-        for gy in range(int(disp_y + 44), int(disp_y + 51), 3):
-            d.add(f'<rect x="{gx}" y="{gy}" width="1.4" height="1.4" fill="#ffffff"/>')
-    d.text(
-        disp_x + 74,
-        disp_y + 50,
-        "GOAL",
-        size=5.5,
-        fill="#ffffff",
-        anchor="middle",
-        weight="bold",
-    )
+    draw_screen(d, disp_x, disp_y, disp_w, disp_h)
 
 
 def draw_mpu6050(d: Drawing) -> None:
@@ -1945,7 +2005,7 @@ def diagram_project_5_wiring() -> Drawing:
     return d
 
 
-def diagram_project_7_wiring() -> Drawing:
+def diagram_project_6_wiring() -> Drawing:
     d = Drawing(70, 120)
     draw_breadboard(d)
     draw_xiao(d)
@@ -2029,6 +2089,73 @@ def diagram_project_7_wiring() -> Drawing:
     return d
 
 
+def diagram_project_7_wiring() -> Drawing:
+    d = Drawing(MARGIN_T, MARGIN_B_ENCODER)
+    draw_breadboard(d)
+    draw_xiao(d)
+
+    # The encoder's five signals all live on the 5V side of the module, so they
+    # arc over its corner exactly as they do in Project 3. Ground is the one
+    # supply three peripherals need at once, so it is fed to the top rail first
+    # and tapped from there, which leaves the row-2 node free of a wire pile-up.
+    jumpers = (
+        ("mcu-ground", WIRE_BLACK, (row_x(2), 75)),
+        ("encoder-ground", WIRE_BLUE, (row_x(10), 160)),
+        ("encoder-power", WIRE_ORANGE, (row_x(7), -54)),
+        ("encoder-sw", WIRE_PURPLE, (row_x(9), 2)),
+        ("encoder-dt", WIRE_GREEN, (row_x(9), -22)),
+        ("encoder-clk", WIRE_YELLOW, (row_x(9), -98)),
+        ("oled-ground", WIRE_BLUE, (row_x(19), 160)),
+        ("oled-power", WIRE_ORANGE, (row_x(12), -45)),
+        ("oled-scl", WIRE_YELLOW, (row_x(14), COLUMN_Y["C"] + 15)),
+        ("oled-sda", WIRE_GREEN, (row_x(13), COLUMN_Y["B"] + 15)),
+        ("speaker-signal", WIRE_RED, (row_x(20), 20)),
+        ("speaker-ground", WIRE_BLACK, (row_x(28), 160)),
+    )
+    for name, colour, control in jumpers:
+        draw_jumper(
+            d,
+            named_hole(f"jumper.{name}.start"),
+            named_hole(f"jumper.{name}.end"),
+            colour,
+            control,
+        )
+
+    draw_rotary_encoder(d)
+    draw_speaker(d)
+    draw_oled_module(d, _oled_screen_clock)
+
+    # The supply and encoder wires all start behind the board, so their callouts
+    # go above it, ordered by the hole they point at so the leaders do not cross.
+    callouts = (
+        ("jumper.mcu-ground.start", "GND", WIRE_BLACK, 26),
+        ("jumper.encoder-power.start", "3.3 V", "#c25c00", 150),
+        ("jumper.encoder-clk.start", "GPIO 10", WIRE_YELLOW, 274),
+        ("jumper.encoder-dt.start", "GPIO 9", WIRE_GREEN, 412),
+        ("jumper.encoder-sw.start", "GPIO 8", WIRE_PURPLE, 530),
+        ("jumper.speaker-signal.start", "GPIO 20", WIRE_RED, 648),
+    )
+    for name, label, colour, label_x in callouts:
+        coordinate = named_hole(name)
+        callout(
+            d,
+            coordinate,
+            f"{label} \u00b7 {coordinate}",
+            (label_x, LABEL_Y_TOP),
+            colour=colour,
+            anchor="start",
+        )
+
+    # The I2C pair starts in front of the board, in among the modules, so those
+    # two labels sit below it instead.
+    oled_scl = named_hole("jumper.oled-scl.start")
+    oled_sda = named_hole("jumper.oled-sda.start")
+    callout(d, oled_sda, f"GPIO 6 (SDA) \u00b7 {oled_sda}", (26, LABEL_Y_BOTTOM), colour=WIRE_GREEN, anchor="start")
+    callout(d, oled_scl, f"GPIO 7 (SCL) \u00b7 {oled_scl}", (240, LABEL_Y_BOTTOM), colour=WIRE_YELLOW, anchor="start")
+
+    return d
+
+
 @dataclass(frozen=True)
 class ProjectDiagrams:
     """One project's TeX source and the diagrams drawn from its coordinates."""
@@ -2068,6 +2195,11 @@ PROJECTS = {
         source=PROJECT_GUIDE_DIR / "projects" / "project_5.tex",
         coordinates=PIXEL_MODULE_COORDINATES,
         outputs={"project_5/wiring.png": diagram_project_5_wiring},
+    ),
+    6: ProjectDiagrams(
+        source=PROJECT_GUIDE_DIR / "projects" / "project_6.tex",
+        coordinates=PROJECT_6_COORDINATES,
+        outputs={"project_6/wiring.png": diagram_project_6_wiring},
     ),
     7: ProjectDiagrams(
         source=PROJECT_GUIDE_DIR / "projects" / "project_7.tex",

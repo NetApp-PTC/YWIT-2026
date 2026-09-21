@@ -1,10 +1,20 @@
-\chapter{Project 6: ESP-NOW Hot Potato}
+\chapter{Project 6: Tilting Ball Maze}
 
 \section{Overview}
-% TODO: Fill in project overview
-This project is a placeholder for Project 6 (ESP-NOW Hot Potato).
-A multiplayer wireless game where a countdown timer is passed between boards using the ESP-NOW
-protocol. The student holding the ``potato'' when the timer hits zero loses!
+In this project, you will build a handheld, tilt-controlled arcade game: the \textbf{Tilting Ball Maze}!
+By wiring an MPU-6050 6-axis accelerometer and a 128$\times$64 OLED display to your ESP32-C3 over a shared
+I\textsuperscript{2}C bus, your microcontroller will measure how much you tilt the breadboard in real time
+and roll a ball sprite through a maze on screen. Guide the ball from the starting corner to the goal without
+getting trapped in dead ends!
+
+Over the course of this project, you will:
+\begin{itemize}
+    \item Connect multiple digital devices to a single shared I\textsuperscript{2}C bus
+    \item Read tilt and gravity data from an MPU-6050 accelerometer
+    \item Drive a high-resolution monochrome OLED screen using MicroPython's \texttt{framebuf} graphics library
+    \item Implement 2D physics (acceleration, velocity, friction, and wall collisions) in Python
+    \item Build a complete, responsive interactive game
+\end{itemize}
 
 \begin{figure}[H]
 \centering
@@ -12,20 +22,232 @@ protocol. The student holding the ``potato'' when the timer hits zero loses!
     \caption{The end result should look something like this}
 \end{figure}
 
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!40!black]
+    \textbf{Learning goals:}
+    \begin{itemize}
+        \item Understand how the I\textsuperscript{2}C protocol uses two shared wires (SCL and SDA) to talk to multiple chips
+        \item Measure physical tilt using 16-bit accelerometer readings
+        \item Draw shapes, text, and sprites on an SSD1306 OLED display
+        \item Calculate axis-aligned bounding box (AABB) collisions between a moving ball and maze walls
+    \end{itemize}
+\end{tcolorbox}
+
 \pagebreak
+
+\section{Components}
+
+\begin{components}
+    \item Seeed XIAO ESP32-C3 microcontroller
+    \item 0.96-inch 128$\times$64 SSD1306 I\textsuperscript{2}C OLED display
+    \item MPU-6050 6-axis accelerometer/gyroscope module (GY-521)
+    \item Breadboard
+    \item Jumper wires
+\end{components}
+
+\section{Understanding \texorpdfstring{I\textsuperscript{2}C}{I2C} Communication} \label{i2c_basics}
+
+Up to now, every peripheral had its own dedicated GPIO pin. However, microcontrollers have a limited
+number of pins. The \textbf{I\textsuperscript{2}C} (Inter-Integrated Circuit) communication protocol solves
+this problem by allowing multiple sensor and display chips to share the exact same two wires:
+
+\begin{itemize}
+    \item \textbf{SCL (Serial Clock):} A clock signal that synchronizes data transmission between chips.
+    \item \textbf{SDA (Serial Data):} A bidirectional data line that carries the messages.
+\end{itemize}
+
+Every I\textsuperscript{2}C device has a unique digital \textbf{address} (like a street address). When the
+microcontroller sends data on the SDA wire, it prefixes the message with the target device's address.
+All other devices on the bus ignore the message.
+
+In this project, both the OLED display (address \texttt{0x3C}) and the MPU-6050 accelerometer (address
+\texttt{0x68}) connect to the same pair of microcontroller pins: \textbf{GPIO 7} (SCL) and \textbf{GPIO 6} (SDA).
+
+\begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!50!black]
+    \textbf{Important:} Power both the OLED and the MPU-6050 from \textbf{3.3V}, not 5V.
+    The ESP32-C3 GPIO pins operate at 3.3V logic levels. Connecting 5V power to the sensors could damage
+    the microcontroller.
+\end{tcolorbox}
 
 \section{Directions}
 
+\subsubsection{Remove previous components}
+Before beginning, remove any components and wires from previous projects. Leave the microcontroller
+firmly seated in its standard position.
+
 \subsection{Creating the circuit}
-% TODO: Add wiring instructions and breadboard diagram
+
+\input{common/microcontroller_seating.tex}
+
+\subsubsection{MPU-6050 accelerometer placement and wiring}
+The MPU-6050 (GY-521) breakout board connects with straight-through header pins and sits flat facing upward.
+Push the module's eight pins into column \textbf{A} (rows 12--19) on the front of the breadboard:
+\textbf{INT} into \bbhole{mpu.header.int}{A12},
+\textbf{AD0} into \bbhole{mpu.header.ad0}{A13},
+\textbf{XCL} into \bbhole{mpu.header.xcl}{A14},
+\textbf{XDA} into \bbhole{mpu.header.xda}{A15},
+\textbf{SDA} into \bbhole{mpu.header.sda}{A16},
+\textbf{SCL} into \bbhole{mpu.header.scl}{A17},
+\textbf{GND} into \bbhole{mpu.header.gnd}{A18}, and
+\textbf{VCC} into \bbhole{mpu.header.vcc}{A19}.
+
+Only four pins (VCC, GND, SCL, SDA) are needed. Pins INT, AD0, XCL, and XDA remain unconnected.
+Connect the MPU-6050 jumpers into the corresponding holes in row \textbf{E}:
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+    \hline
+    \textbf{MPU-6050 pin} & \textbf{XIAO pin} & \textbf{Jumper holes} \\
+    \hline
+    \connectionrow{mpu-power}{VCC}{3V3}{J3}{E19}
+    \connectionrow{mpu-ground}{GND}{GND}{J2}{E18}
+    \connectionrow{mpu-scl}{SCL}{GPIO 7}{B6}{E17}
+    \connectionrow{mpu-sda}{SDA}{GPIO 6}{B5}{E16}
+    \hline
+\end{tabular}
+\end{center}
+
+\subsubsection{OLED display placement and wiring}
+The 0.96-inch SSD1306 OLED module also connects with straight-through header pins, sitting flat facing upward.
+Insert the four pins into column \textbf{A} (rows 25--28) next to the accelerometer:
+\textbf{GND} into \bbhole{oled.header.ground}{A25},
+\textbf{VCC} into \bbhole{oled.header.power}{A26},
+\textbf{SCL} into \bbhole{oled.header.scl}{A27}, and
+\textbf{SDA} into \bbhole{oled.header.sda}{A28}.
+
+\begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!50!black]
+    \textbf{Check your OLED pins:} Most OLED displays have the pin order \textbf{GND, VCC, SCL, SDA}.
+    However, some modules swap \textbf{VCC} and \textbf{GND}. Always check the silkscreen labels printed on
+    your specific OLED board before powering on!
+\end{tcolorbox}
+
+Connect the OLED by daisy-chaining power, ground, clock, and data directly from the accelerometer:
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+    \hline
+    \textbf{OLED pin} & \textbf{Connected to} & \textbf{Jumper holes} \\
+    \hline
+    \connectionrow{oled-ground}{GND}{MPU GND}{D18}{E25}
+    \connectionrow{oled-power}{VCC}{MPU VCC}{D19}{E26}
+    \connectionrow{oled-scl}{SCL}{MPU SCL}{D17}{E27}
+    \connectionrow{oled-sda}{SDA}{MPU SDA}{D16}{E28}
+    \hline
+\end{tabular}
+\end{center}
+
+All four connections are daisy-chained through the accelerometer rows. Its \textbf{VCC} and \textbf{GND}
+connections continue from rows 19 and 18 to the OLED at rows 26 and 25. Likewise, \textbf{GPIO 7}
+connects to the accelerometer's SCL pin at row 17 and continues to the OLED's SCL pin at row 27, while
+\textbf{GPIO 6} connects to the accelerometer's SDA pin at row 16 and continues to the OLED's SDA pin at
+row 28. Both devices therefore share the same power and I\textsuperscript{2}C bus connections.
+
+\begin{figure}[H]
+    \centering
+    \maybeincludegraphics[width=.95\linewidth]{project_6/wiring.png}
+    \caption{Connect both the OLED display and MPU-6050 accelerometer to the shared I2C bus.}
+\end{figure}
 
 \subsection{Programming the microcontroller}
-% TODO: Add programming instructions
-Click on the file named "project\_6\_hot\_potato.py" and run it using the IDE.
+
+Upload the following files to your microcontroller using the IDE:
+\begin{itemize}
+    \item \texttt{project\_6\_tilting\_ball\_maze.py}
+    \item \texttt{lib/ssd1306.py} (in the \texttt{lib/} directory)
+    \item \texttt{lib/mpu6050.py} (in the \texttt{lib/} directory)
+\end{itemize}
+
+Once the files are uploaded, open \texttt{project\_6\_tilting\_ball\_maze.py} and click the play button.
 Refer back to Chapter \ref{ide} for IDE instructions.
 
+\subsection{How the program works}
+
+\subsubsection{Initializing the Shared I\textsuperscript{2}C Bus}
+The program begins by creating a hardware I\textsuperscript{2}C bus on GPIO 7 (SCL) and GPIO 6 (SDA), then
+scans for connected devices:
+
+\begin{lstlisting}[language=Python, caption=Initializing I2C and discovering devices]
+i2c = I2C(0, scl=Pin(7), sda=Pin(6), freq=400000)
+devices = i2c.scan()
+print("I2C devices found:", [hex(d) for d in devices])
+\end{lstlisting}
+
+If both modules are wired correctly, the serial console prints \texttt{['0x3c', '0x68']}.
+
+\subsubsection{Reading Tilt from the Accelerometer}
+The MPU-6050 contains micro-electromechanical sensors (MEMS) that measure acceleration in three dimensions ($X$, $Y$, and $Z$).
+When the breadboard is held flat, gravity points straight down along the $Z$-axis. When you tilt the board,
+gravity tilts into the $X$ and $Y$ axes:
+
+\begin{lstlisting}[language=Python, caption=Converting tilt into ball acceleration]
+ax, ay, az = mpu.read_accel()
+
+# Remove the neutral offsets measured while the board was level
+ax -= ax_offset
+ay -= ay_offset
+
+# Apply a small deadzone so the ball rests still on flat surfaces
+if abs(ax) < DEADZONE:
+    ax = 0
+if abs(ay) < DEADZONE:
+    ay = 0
+
+# Integrate acceleration into velocity with friction
+vx = (vx + ax * TILT_SCALE) * FRICTION
+vy = (vy + ay * TILT_SCALE) * FRICTION
+\end{lstlisting}
+
+Accelerometers usually report a small nonzero value even when perfectly level. When the program starts,
+it displays \textbf{Hold level...} and averages 100 readings to find that neutral X/Y offset. Keep the
+breadboard level and still until the game title appears. The program subtracts those offsets from every
+later reading so motion should be equally responsive in opposite directions.
+
+\subsubsection{Collision Detection and Drawing}
+The maze consists of rectangular wall segments. Before updating the ball's position, the game tests whether
+the new position would overlap any wall. If a collision is detected on an axis, the ball stops against the wall:
+
+\begin{lstlisting}[language=Python, caption=Axis-aligned bounding box collision]
+new_x = ball_x + vx
+if not hits_wall(new_x, ball_y, BALL_RADIUS):
+    ball_x = new_x
+else:
+    vx = 0  # Stop horizontal motion on impact
+\end{lstlisting}
+
+Every frame, the program clears the screen buffer, draws all maze walls, renders the checkered goal zone,
+draws the ball sprite, and calls \texttt{oled.show()} to push the entire image to the OLED over I\textsuperscript{2}C.
+
+\begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!50!black]
+    \textbf{If something does not work:}
+    \begin{itemize}
+        \item \textbf{I\textsuperscript{2}C scan is empty:} Check the power (3.3V) and ground jumpers. Verify that SCL is on
+        GPIO 7 (\bbref{jumper.oled-scl.start} and \bbref{jumper.mpu-scl.start}) and SDA is on GPIO 6
+        (\bbref{jumper.oled-sda.start} and \bbref{jumper.mpu-sda.start}).
+        \item \textbf{OLED remains dark:} Check whether your OLED module has GND and VCC in reversed order.
+        Verify that \texttt{lib/ssd1306.py} was uploaded to the \texttt{lib/} folder.
+        \item \textbf{Ball moves backwards:} Tilting forwards should roll the ball down; tilting right should roll it right.
+        If an axis feels inverted, change \texttt{INVERT\_X} or \texttt{INVERT\_Y} from \texttt{False} to \texttt{True} at the
+        top of the script.
+        \item \textbf{Ball responds too slowly:} Increase \texttt{TILT\_SCALE} slightly. If very small tilts are ignored,
+        decrease \texttt{DEADZONE} slightly.
+        \item \textbf{Ball drifts or responds differently in opposite directions:} Restart the program and keep the
+        breadboard level and still during calibration. If it still drifts, slightly increase \texttt{DEADZONE}.
+    \end{itemize}
+\end{tcolorbox}
+
 \section{Review}
-% TODO: Add review content
+In this project, you combined motion sensing and display hardware on a single bus. You learned:
+\begin{itemize}
+    \item How the I\textsuperscript{2}C protocol connects multiple sensors and displays to just two microcontroller pins
+    \item How an accelerometer detects gravitational tilt
+    \item How to use MicroPython framebuffer commands (\texttt{fill}, \texttt{rect}, \texttt{fill\_rect}, \texttt{text})
+    \item How basic physics simulation (velocity, dampening friction, and bounding box collisions) creates fluid game movement
+\end{itemize}
 
 \section{Possible Extensions}
-% TODO: Add extension ideas
+\begin{itemize}
+    \item \textbf{Design custom mazes:} Modify the \texttt{WALLS} list in the Python script to create your own challenging labyrinths.
+    \item \textbf{Add hazard holes:} Add circular ``pit'' zones that send the ball back to the starting point if touched!
+    \item \textbf{Add a timer:} Use \texttt{utime.ticks\_ms()} to track how fast players solve the maze and display their best time.
+    \item \textbf{Multi-level maze:} When the goal is reached, load a new, more difficult maze layout.
+    \item \textbf{Add sound effects:} Reconnect the speaker from Projects 3 and 4 to play a click when bumping into walls and a fanfare on victory!
+\end{itemize}

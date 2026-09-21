@@ -1,253 +1,563 @@
-\chapter{Project 7: Tilting Ball Maze}
+\chapter{Project 7: Desk Companion}
 
 \section{Overview}
-In this project, you will build a handheld, tilt-controlled arcade game: the \textbf{Tilting Ball Maze}!
-By wiring an MPU-6050 6-axis accelerometer and a 128$\times$64 OLED display to your ESP32-C3 over a shared
-I\textsuperscript{2}C bus, your microcontroller will measure how much you tilt the breadboard in real time
-and roll a ball sprite through a maze on screen. Guide the ball from the starting corner to the goal without
-getting trapped in dead ends!
+This is the last and largest project, and it is the one you are most likely to keep using after
+the workshop. You will turn the microcontroller into a \textbf{Desk Companion}: a clock that sets
+itself from the internet, shows the weather for your town, and wakes you up in the morning.
 
-Over the course of this project, you will:
+Every part of this build is one you have already met. The OLED screen comes from Project 6, the
+rotary encoder and speaker come from Project 3, and each one keeps the same pin it had there. What
+is new is the software. Until now your board has been on its own, or has been a Wi-Fi network that
+other devices joined. This time it \emph{joins} your network and asks other computers on the
+internet for information.
+
+You will build:
 \begin{itemize}
-    \item Connect multiple digital devices to a single shared I\textsuperscript{2}C bus
-    \item Read tilt and gravity data from an MPU-6050 accelerometer
-    \item Drive a high-resolution monochrome OLED screen using MicroPython's \texttt{framebuf} graphics library
-    \item Implement 2D physics (acceleration, velocity, friction, and wall collisions) in Python
-    \item Build a complete, responsive interactive game
+    \item A clock that learns the correct time from the internet
+    \item A weather screen showing the current temperature, conditions, and today's high and low
+    \item An alarm you set with the knob, which rings through the speaker and can be snoozed
+    \item A menu of screens you page through by turning the knob
+    \item Settings that are written to the board's own filesystem, so your alarm is still there
+          after the microcontroller has been unplugged
 \end{itemize}
 
 \begin{figure}[H]
 \centering
     \maybeincludegraphics[width=.6\linewidth]{project_7/success.jpg}
-    \caption{The end result should look something like this}
+    \caption{The finished Desk Companion, showing the time and the current conditions}
 \end{figure}
 
 \begin{tcolorbox}[colback=blue!5!white,colframe=blue!40!black]
     \textbf{Learning goals:}
     \begin{itemize}
-        \item Understand how the I\textsuperscript{2}C protocol uses two shared wires (SCL and SDA) to talk to multiple chips
-        \item Measure physical tilt using 16-bit accelerometer readings
-        \item Draw shapes, text, and sprites on an SSD1306 OLED display
-        \item Calculate axis-aligned bounding box (AABB) collisions between a moving ball and maze walls
+        \item Join an existing Wi-Fi network in \emph{station} mode, the opposite of the access
+              point you hosted in Project 5
+        \item Act as an HTTP \emph{client}: request a page from someone else's server and read the
+              reply
+        \item Use a geocoding service to turn a city name into latitude and longitude
+        \item Pull the values you need out of JSON sent by a real public web service
+        \item Set the board's real-time clock from the headers of a reply you already asked for, and
+              convert UTC into local time
+        \item Write your own Python classes to organize a program that does several things at once
+        \item Save settings to a file on the microcontroller so they survive a power cycle
+        \item Write a main loop that never blocks, so the screen, the knob, and the alarm all stay
+              responsive
     \end{itemize}
 \end{tcolorbox}
 
 \pagebreak
 
 \section{Components}
-
 \begin{components}
     \item Seeed XIAO ESP32-C3 microcontroller
     \item 0.96-inch 128$\times$64 SSD1306 I\textsuperscript{2}C OLED display
-    \item MPU-6050 6-axis accelerometer/gyroscope module (GY-521)
+    \item KY-040 rotary encoder module
+    \item Treedix 1W 8\si{\ohm} mini speaker
     \item Breadboard
     \item Jumper wires
 \end{components}
 
-\section{Understanding \texorpdfstring{I\textsuperscript{2}C}{I2C} Communication} \label{i2c_basics}
-
-Up to now, every peripheral had its own dedicated GPIO pin. However, microcontrollers have a limited
-number of pins. The \textbf{I\textsuperscript{2}C} (Inter-Integrated Circuit) communication protocol solves
-this problem by allowing multiple sensor and display chips to share the exact same two wires:
-
-\begin{itemize}
-    \item \textbf{SCL (Serial Clock):} A clock signal that synchronizes data transmission between chips.
-    \item \textbf{SDA (Serial Data):} A bidirectional data line that carries the messages.
-\end{itemize}
-
-Every I\textsuperscript{2}C device has a unique digital \textbf{address} (like a street address). When the
-microcontroller sends data on the SDA wire, it prefixes the message with the target device's address.
-All other devices on the bus ignore the message.
-
-In this project, both the OLED display (address \texttt{0x3C}) and the MPU-6050 accelerometer (address
-\texttt{0x68}) connect to the same pair of microcontroller pins: \textbf{GPIO 7} (SCL) and \textbf{GPIO 6} (SDA).
-
-\begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!50!black]
-    \textbf{Important:} Power both the OLED and the MPU-6050 from \textbf{3.3V}, not 5V.
-    The ESP32-C3 GPIO pins operate at 3.3V logic levels. Connecting 5V power to the sensors could damage
-    the microcontroller.
-\end{tcolorbox}
-
 \section{Directions}
 
 \subsubsection{Remove previous components}
-Before beginning, remove any components and wires from previous projects. Leave the microcontroller
-firmly seated in its standard position.
+Before beginning, remove the MPU-6050 accelerometer and its wires from Project 6. Leave the
+microcontroller seated in the breadboard. You will be reusing the OLED display, so if it is
+already wired you may still find it easier to start from an empty board, because this project
+seats it in a different place to make room for the encoder.
 
 \subsection{Creating the circuit}
 
 \input{common/microcontroller_seating.tex}
 
-\subsubsection{MPU-6050 accelerometer placement and wiring}
-The MPU-6050 (GY-521) breakout board connects with straight-through header pins and sits flat facing upward.
-Push the module's eight pins into column \textbf{A} (rows 12--19) on the front of the breadboard:
-\textbf{INT} into \bbhole{mpu.header.int}{A12},
-\textbf{AD0} into \bbhole{mpu.header.ad0}{A13},
-\textbf{XCL} into \bbhole{mpu.header.xcl}{A14},
-\textbf{XDA} into \bbhole{mpu.header.xda}{A15},
-\textbf{SDA} into \bbhole{mpu.header.sda}{A16},
-\textbf{SCL} into \bbhole{mpu.header.scl}{A17},
-\textbf{GND} into \bbhole{mpu.header.gnd}{A18}, and
-\textbf{VCC} into \bbhole{mpu.header.vcc}{A19}.
-
-Only four pins (VCC, GND, SCL, SDA) are needed. Pins INT, AD0, XCL, and XDA remain unconnected.
-Connect the MPU-6050 jumpers into the corresponding holes in row \textbf{E}:
+\subsubsection{Ground rail distribution}
+Three separate peripherals need a ground connection in this project, which is more than the
+microcontroller's own \textbf{GND} row can comfortably supply. As in Project 4, we solve this by
+running one wire from \textbf{GND} to the breadboard's top blue ($-$) power rail. Every ground
+connection after this taps the rail instead:
 
 \begin{center}
 \begin{tabular}{|l|l|l|}
     \hline
-    \textbf{MPU-6050 pin} & \textbf{XIAO pin} & \textbf{Jumper holes} \\
+    \textbf{Connection} & \textbf{XIAO pin} & \textbf{Jumper holes} \\
     \hline
-    \connectionrow{mpu-power}{VCC}{3V3}{J3}{E19}
-    \connectionrow{mpu-ground}{GND}{GND}{J2}{E18}
-    \connectionrow{mpu-scl}{SCL}{GPIO 7}{B6}{E17}
-    \connectionrow{mpu-sda}{SDA}{GPIO 6}{B5}{E16}
+    \connectionrow{mcu-ground}{Top GND rail}{GND}{I2}{top-2}
+    \hline
+\end{tabular}
+\end{center}
+
+\subsubsection{KY-040 encoder placement and wiring}
+Seat the encoder's five-pin header along the front edge of the board, knob facing you, so the pins
+land in silkscreen order: \textbf{GND} in \bbhole{encoder.header.ground}{A10},
+\textbf{+} in \bbhole{encoder.header.power}{A11},
+\textbf{SW} in \bbhole{encoder.header.sw}{A12},
+\textbf{DT} in \bbhole{encoder.header.dt}{A13}, and
+\textbf{CLK} in \bbhole{encoder.header.clk}{A14}.
+These are the same three signal pins the encoder used in Project 3, so the code reads the knob
+exactly as the Safe Cracker did:
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+    \hline
+    \textbf{KY-040 pin} & \textbf{Source / Pin} & \textbf{Jumper holes} \\
+    \hline
+    Encoder ground & Top GND rail & \bbhole{jumper.encoder-ground.start}{top-10} $\rightarrow$ \bbhole{jumper.encoder-ground.end}{E10} \\
+    \connectionrow{encoder-power}{+ (VCC)}{3V3}{I3}{E11}
+    \connectionrow{encoder-sw}{SW}{GPIO 8}{I6}{E12}
+    \connectionrow{encoder-dt}{DT}{GPIO 9}{I5}{E13}
+    \connectionrow{encoder-clk}{CLK}{GPIO 10}{I4}{E14}
     \hline
 \end{tabular}
 \end{center}
 
 \subsubsection{OLED display placement and wiring}
-The 0.96-inch SSD1306 OLED module also connects with straight-through header pins, sitting flat facing upward.
-Insert the four pins into column \textbf{A} (rows 25--28) next to the accelerometer:
-\textbf{GND} into \bbhole{oled.header.ground}{A25},
-\textbf{VCC} into \bbhole{oled.header.power}{A26},
-\textbf{SCL} into \bbhole{oled.header.scl}{A27}, and
-\textbf{SDA} into \bbhole{oled.header.sda}{A28}.
+Seat the OLED's four-pin header in column \textbf{A} further along the board, clear of the
+encoder's body: \textbf{GND} into \bbhole{oled.header.ground}{A19},
+\textbf{VCC} into \bbhole{oled.header.power}{A20},
+\textbf{SCL} into \bbhole{oled.header.scl}{A21}, and
+\textbf{SDA} into \bbhole{oled.header.sda}{A22}.
 
 \begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!50!black]
-    \textbf{Check your OLED pins:} Most OLED displays have the pin order \textbf{GND, VCC, SCL, SDA}.
-    However, some modules swap \textbf{VCC} and \textbf{GND}. Always check the silkscreen labels printed on
-    your specific OLED board before powering on!
+    \textbf{Check your OLED pins again:} as in Project 6, most modules read \textbf{GND, VCC, SCL,
+    SDA}, but some swap \textbf{VCC} and \textbf{GND}. Read the silkscreen on your own board before
+    powering it on, and power it from \textbf{3.3V} rather than 5V.
 \end{tcolorbox}
-
-Connect the OLED by daisy-chaining power, ground, clock, and data directly from the accelerometer:
 
 \begin{center}
 \begin{tabular}{|l|l|l|}
     \hline
-    \textbf{OLED pin} & \textbf{Connected to} & \textbf{Jumper holes} \\
+    \textbf{OLED pin} & \textbf{Source / Pin} & \textbf{Jumper holes} \\
     \hline
-    \connectionrow{oled-ground}{GND}{MPU GND}{D18}{E25}
-    \connectionrow{oled-power}{VCC}{MPU VCC}{D19}{E26}
-    \connectionrow{oled-scl}{SCL}{MPU SCL}{D17}{E27}
-    \connectionrow{oled-sda}{SDA}{MPU SDA}{D16}{E28}
+    OLED ground & Top GND rail & \bbhole{jumper.oled-ground.start}{top-19} $\rightarrow$ \bbhole{jumper.oled-ground.end}{E19} \\
+    \connectionrow{oled-power}{VCC}{3V3}{J3}{E20}
+    \connectionrow{oled-scl}{SCL}{GPIO 7}{B6}{E21}
+    \connectionrow{oled-sda}{SDA}{GPIO 6}{B5}{E22}
     \hline
 \end{tabular}
 \end{center}
 
-All four connections are daisy-chained through the accelerometer rows. Its \textbf{VCC} and \textbf{GND}
-connections continue from rows 19 and 18 to the OLED at rows 26 and 25. Likewise, \textbf{GPIO 7}
-connects to the accelerometer's SCL pin at row 17 and continues to the OLED's SCL pin at row 27, while
-\textbf{GPIO 6} connects to the accelerometer's SDA pin at row 16 and continues to the OLED's SDA pin at
-row 28. Both devices therefore share the same power and I\textsuperscript{2}C bus connections.
+The screen keeps the I\textsuperscript{2}C pins it used in Project 6: \textbf{GPIO 7} for the clock
+line and \textbf{GPIO 6} for the data line.
+
+\subsubsection{Speaker placement and wiring}
+Insert the speaker's two Dupont leads into the front half of the board, past the display: the
+positive red lead into \bbhole{speaker.lead.signal}{C26} and the negative black lead into
+\bbhole{speaker.lead.ground}{C28}. The speaker returns to \textbf{GPIO 20}, the pin it used in
+Project 3:
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+    \hline
+    \textbf{Speaker lead} & \textbf{Source / Pin} & \textbf{Jumper holes} \\
+    \hline
+    \connectionrow{speaker-signal}{Signal (+)}{GPIO 20}{I7}{E26}
+    Speaker ground ($-$) & Top GND rail & \bbhole{jumper.speaker-ground.start}{top-28} $\rightarrow$ \bbhole{jumper.speaker-ground.end}{E28} \\
+    \hline
+\end{tabular}
+\end{center}
 
 \begin{figure}[H]
     \centering
     \maybeincludegraphics[width=.95\linewidth]{project_7/wiring.png}
-    \caption{Connect both the OLED display and MPU-6050 accelerometer to the shared I2C bus.}
+    \caption{Complete wiring diagram for Project 7: Desk Companion.}
 \end{figure}
 
 \subsection{Programming the microcontroller}
 
 Upload the following files to your microcontroller using the IDE:
 \begin{itemize}
-    \item \texttt{project\_7\_tilting\_ball\_maze.py}
-    \item \texttt{lib/ssd1306.py} (in the \texttt{lib/} directory)
-    \item \texttt{lib/mpu6050.py} (in the \texttt{lib/} directory)
+    \item \texttt{project\_7\_desk\_companion.py}
+    \item \texttt{lib/ssd1306.py}, \texttt{lib/rotary.py}, \texttt{lib/rotary\_irq.py}, and
+          \texttt{lib/debounced\_button.py} (all in the \texttt{lib/} directory)
 \end{itemize}
 
-Once the files are uploaded, open \texttt{project\_7\_tilting\_ball\_maze.py} and click the play button.
-Refer back to Chapter \ref{ide} for IDE instructions.
+\begin{tcolorbox}[colback=green!5!white,colframe=green!40!black]
+    \textbf{Edit these three lines before you run it.} Open
+    \texttt{project\_7\_desk\_companion.py} and find the block near the top marked
+    \emph{Things you should change}:
+    \begin{itemize}
+        \item \texttt{WIFI\_SSID} and \texttt{WIFI\_PASSWORD} --- the network to join. Your
+              instructor will give you the name and password to use in the classroom.
+        \item \texttt{CITY} --- the place you want the forecast for. Include the state, province,
+              or country when more than one place has the same name: for example,
+              \texttt{"Pittsburgh, PA"}, \texttt{"Paris, France"}, or
+              \texttt{"Springfield, Illinois"}.
+    \end{itemize}
+\end{tcolorbox}
+
+Then open \texttt{project\_7\_desk\_companion.py} in the IDE and run it. Refer back to
+Chapter \ref{ide} for IDE instructions.
+
+The serial console reports each step as the board starts up:
+\begin{verbatim}
+--- Starting Project 7: Desk Companion ---
+I2C bus scanned. Found addresses: ['0x3c']
+No saved settings yet; using defaults.
+Connected to YWIT-Workshop as 192.168.1.42
+Matched location: Pittsburgh, Pennsylvania, United States (40.4406, -79.9959)
+Clock set from the weather server; UTC is (2026, 9, 20, 15, 30, 4, 5, 263)
+Weather: {'temperature': 69.9, 'description': 'CLOUDY', 'high': 75.0, ...}
+\end{verbatim}
+
+\subsection{Using the Desk Companion}
+Turning the knob moves between screens. Pressing it selects something on the screen you are
+looking at.
+
+\begin{center}
+\begin{tabular}{|l|l|}
+    \hline
+    \textbf{Screen} & \textbf{What it shows} \\
+    \hline
+    Clock    & The time in large digits, the date, and a one-line weather summary \\
+    Weather  & Temperature, conditions, today's high and low, and how old the reading is \\
+    Alarm    & Press to edit the hour, press again for the minute, again to arm it \\
+    Set Time & Set the clock by hand, for when there is no Wi-Fi to get the time from \\
+    Status   & Whether the network is up, the board's IP address, and how long it has been on \\
+    \hline
+\end{tabular}
+\end{center}
+
+When the alarm goes off, the screen flashes and the speaker beeps. \textbf{Press} the knob to
+switch it off, or \textbf{turn} it to snooze for nine more minutes.
 
 \subsection{How the program works}
 
-\subsubsection{Initializing the Shared I\textsuperscript{2}C Bus}
-The program begins by creating a hardware I\textsuperscript{2}C bus on GPIO 7 (SCL) and GPIO 6 (SDA), then
-scans for connected devices:
+\subsubsection{Joining a network instead of hosting one}
+In Project 5 the board created its own Wi-Fi network using \texttt{network.AP\_IF}, the
+\emph{access point} interface. Here it uses \texttt{network.STA\_IF}, the \emph{station} interface,
+which is what your laptop and phone use to join a network somebody else is running:
 
-\begin{lstlisting}[language=Python, caption=Initializing I2C and discovering devices]
-i2c = I2C(0, scl=Pin(7), sda=Pin(6), freq=400000)
-devices = i2c.scan()
-print("I2C devices found:", [hex(d) for d in devices])
+\begin{lstlisting}[language=Python, caption=Joining an existing Wi-Fi network]
+self.wlan = network.WLAN(network.STA_IF)
+self.wlan.active(True)
+if not self.wlan.isconnected():
+    self.wlan.connect(WIFI_SSID, WIFI_PASSWORD)
+    for _ in range(100):  # up to ten seconds
+        if self.wlan.isconnected():
+            break
+        time.sleep_ms(100)
 \end{lstlisting}
 
-If both modules are wired correctly, the serial console prints \texttt{['0x3c', '0x68']}.
+Joining is not instant, so the code checks \texttt{isconnected()} in a loop instead of assuming it
+worked. If ten seconds pass without success, the program carries on as an offline clock rather than
+stopping with an error.
 
-\subsubsection{Reading Tilt from the Accelerometer}
-The MPU-6050 contains micro-electromechanical sensors (MEMS) that measure acceleration in three dimensions ($X$, $Y$, and $Z$).
-When the breadboard is held flat, gravity points straight down along the $Z$-axis. When you tilt the board,
-gravity tilts into the $X$ and $Y$ axes:
+\subsubsection{Asking another computer for a web page}
+Project 5 made your board a web \emph{server}: your phone opened a socket to it and asked for a
+page. This project reverses the roles. The board is the \emph{client} now, and it opens a socket to
+a weather service and sends the same kind of request a browser would:
 
-\begin{lstlisting}[language=Python, caption=Converting tilt into ball acceleration]
-ax, ay, az = mpu.read_accel()
-
-# Remove the neutral offsets measured while the board was level
-ax -= ax_offset
-ay -= ay_offset
-
-# Apply a small deadzone so the ball rests still on flat surfaces
-if abs(ax) < DEADZONE:
-    ax = 0
-if abs(ay) < DEADZONE:
-    ay = 0
-
-# Integrate acceleration into velocity with friction
-vx = (vx + ax * TILT_SCALE) * FRICTION
-vy = (vy + ay * TILT_SCALE) * FRICTION
+\begin{lstlisting}[language=Python, caption=An HTTP GET request built by hand]
+address = socket.getaddrinfo(host, 80)[0][-1]
+sock = socket.socket()
+sock.settimeout(timeout)
+sock.connect(address)
+request = f"GET {path} HTTP/1.0\r\nHost: {host}\r\nConnection: close\r\n\r\n"
+sock.send(request.encode())
 \end{lstlisting}
 
-Accelerometers usually report a small nonzero value even when perfectly level. When the program starts,
-it displays \textbf{Hold level...} and averages 100 readings to find that neutral X/Y offset. Keep the
-breadboard level and still until the game title appears. The program subtracts those offsets from every
-later reading so motion should be equally responsive in opposite directions.
+\texttt{getaddrinfo} is the step that turns a name such as \texttt{api.open-meteo.com} into an IP
+address, which is what the socket actually needs. The reply arrives as one long stretch of bytes
+with the headers first, then a blank line, then the content:
 
-\subsubsection{Collision Detection and Drawing}
-The maze consists of rectangular wall segments. Before updating the ball's position, the game tests whether
-the new position would overlap any wall. If a collision is detected on an axis, the ball stops against the wall:
-
-\begin{lstlisting}[language=Python, caption=Axis-aligned bounding box collision]
-new_x = ball_x + vx
-if not hits_wall(new_x, ball_y, BALL_RADIUS):
-    ball_x = new_x
-else:
-    vx = 0  # Stop horizontal motion on impact
+\begin{lstlisting}[language=Python, caption=Splitting the reply into headers and content]
+headers, _, body = raw.partition(b"\r\n\r\n")
+# The first line looks like "HTTP/1.0 200 OK"; the middle word is the code.
+status = int(headers.split(b" ")[1])
+return status, headers, body
 \end{lstlisting}
 
-Every frame, the program clears the screen buffer, draws all maze walls, renders the checkered goal zone,
-draws the ball sprite, and calls \texttt{oled.show()} to push the entire image to the OLED over I\textsuperscript{2}C.
+A status of \texttt{200} means the request worked. Anything else is the server telling you it could
+not help, and the program prints what it said and keeps the previous reading on screen.
+
+\subsubsection{Turning a city name into coordinates}
+The forecast service still needs latitude and longitude, but students should not have to look those
+numbers up themselves. Open-Meteo has a second service called a \textbf{geocoder}. The program first
+sends the value of \texttt{CITY} to that service and asks for its best match:
+
+\begin{lstlisting}[language=Python, caption=Building the city-search request]
+def geocoding_path():
+    return f"/v1/search?name={url_encode(CITY)}&count=1&language=en&format=json"
+\end{lstlisting}
+
+A URL cannot contain a literal space, comma, or accented letter. \texttt{url\_encode} converts the
+city's UTF-8 bytes into \emph{percent encoding}: a space becomes \texttt{\%20}, a comma becomes
+\texttt{\%2C}, and so on. That means a value such as \texttt{"Pittsburgh, PA"} can safely be placed
+inside an HTTP request.
+
+The geocoding reply contains a list of possible places. Asking for \texttt{count=1} keeps only the
+best match. The program takes that result's coordinates and descriptive fields:
+
+\begin{lstlisting}[language=Python, caption=Remembering the matched place]
+match = results[0]
+self.location = {
+    "query": CITY,
+    "name": match["name"],
+    "admin1": match.get("admin1", ""),
+    "country": match.get("country", ""),
+    "latitude": match["latitude"],
+    "longitude": match["longitude"],
+}
+\end{lstlisting}
+
+It prints the full match in the serial console and shows the matched city at the top of the Weather
+screen, so you can check that a shared name such as Springfield did not select the wrong place. The
+match is also saved in \texttt{desk\_companion.json}. On later starts the board reuses those
+coordinates instead of asking the geocoder again. If you change \texttt{CITY}, the saved query no
+longer matches and the board automatically looks up the new place.
+
+\subsubsection{Reading real data out of JSON}
+The weather service replies with JSON, the same format Project 5's web page used to talk to the
+board. \texttt{ujson.loads} turns those bytes into ordinary Python dictionaries and lists, and from
+there it is plain indexing:
+
+\begin{lstlisting}[language=Python, caption=Pulling the useful numbers out of the reply]
+payload = ujson.loads(body)
+current = payload["current"]
+daily = payload["daily"]
+self.weather = {
+    "temperature": current["temperature_2m"],
+    "description": describe_weather_code(current["weather_code"]),
+    "high": daily["temperature_2m_max"][0],
+    "low": daily["temperature_2m_min"][0],
+    "fetched_ms": time.ticks_ms(),
+}
+\end{lstlisting}
+
+Conditions arrive as a number rather than words: the service uses standard WMO weather codes, where
+0 is a clear sky, 3 is cloudy, and 95 is a thunderstorm. The \texttt{WEATHER\_CODES} dictionary near
+the top of the file turns those numbers into the short labels that fit on the screen.
+
+\subsubsection{Knowing what time it is}
+A microcontroller has no idea what time it is when it powers on, and this one never asks a separate
+time service. It does not need to. \emph{Every} HTTP reply carries a \texttt{Date} header giving the
+server's own clock, to the second, always in UTC and always in the same shape:
+
+\begin{lstlisting}[caption=The start of a real reply from the weather service]
+HTTP/1.1 200 OK
+Date: Sun, 20 Sep 2026 15:17:37 GMT
+Content-Type: application/json
+\end{lstlisting}
+
+The board already asks that server for the weather every fifteen minutes, so the same reply sets the
+clock. A helper called \texttt{parse\_http\_date} looks through the header lines for that one, and
+returns the six numbers a clock needs:
+
+\begin{lstlisting}[language=Python, caption=Taking the time from the weather reply]
+server_utc = parse_http_date(headers)
+if server_utc is not None:
+    self.set_clock_utc(server_utc)
+\end{lstlisting}
+
+Getting two useful things out of one request is worth noticing. A separate time service would be a
+second thing to wait for, a second thing to get blocked, and a second thing to explain when it
+fails.
+
+The clock keeps \textbf{UTC}, the worldwide reference time, which is four or five hours ahead of
+the eastern United States depending on daylight saving. Rather than make you edit that number twice
+a year, the program takes it from the weather reply, which reports the offset for the coordinates
+found by the city search:
+
+\begin{lstlisting}[language=Python, caption=Turning UTC into local time]
+self.utc_offset_seconds = payload["utc_offset_seconds"]
+
+def local_time(self):
+    return time.localtime(time.time() + self.utc_offset_seconds)
+\end{lstlisting}
+
+\subsubsection{Classes that each own one screen}
+This program does more at once than any earlier one. Written as a single loop of
+\texttt{if}-statements it would be almost impossible to follow, so instead each screen is its own
+\textbf{class}: a bundle of data and the functions that work on it. Every screen knows how to draw
+itself and what the knob and button should do while it is showing.
+
+\begin{lstlisting}[language=Python, caption=The shared shape of every screen]
+class Screen:
+    title = "SCREEN"
+
+    def __init__(self, app):
+        self.app = app
+
+    def draw(self, oled):
+        raise NotImplementedError
+
+    def turn(self, steps):
+        """Knob moved by the given number of clicks while editing."""
+
+    def press(self):
+        """Knob button pressed."""
+\end{lstlisting}
+
+There are five screens, and each one is declared the same way. Writing
+\texttt{class ClockScreen(Screen):} means ``this is a \texttt{Screen}, plus the following
+differences,'' so a screen only has to describe what makes it different. Adding a sixth screen means
+writing one more small class and adding it to the list; nothing else in the program changes.
+
+Two of the screens go a step further. Setting the alarm and setting the clock by hand need exactly
+the same knob behaviour: press once to start on the hour, press again for the minute, and turn to
+change whichever one is underlined. Rather than write that twice, a \texttt{TimeEditScreen} class
+holds the shared part, and the two screens say what is different about them --- where the hour and
+minute are kept, and what to do once you have finished editing. The alarm screen also adds a third
+field for arming it, which is one extra entry in a list and one extra branch in \texttt{turn}.
+
+\subsubsection{Remembering settings after a power cut}
+Everything a program keeps in a variable is gone the moment the board loses power. The
+microcontroller has a small filesystem of its own, though, and it is the same filesystem your
+project files live on, so the alarm and matched city can simply be written to a file:
+
+\begin{lstlisting}[language=Python, caption=Saving and loading settings]
+def save_settings(settings):
+    with open(SETTINGS_FILE, "w") as handle:
+        handle.write(ujson.dumps(settings))
+
+
+def load_settings():
+    settings = dict(DEFAULT_SETTINGS)
+    try:
+        with open(SETTINGS_FILE, "r") as handle:
+            saved = ujson.loads(handle.read())
+    except (OSError, ValueError):
+        print("No saved settings yet; using defaults.")
+        return settings
+\end{lstlisting}
+
+The first run has no file to read, and a file can always be damaged or hand-edited into nonsense, so
+the load starts from a copy of the defaults and only replaces the keys it recognizes. A program that
+reads files has to assume the file might be missing or wrong. The cached location also records the
+original \texttt{CITY} query; if that line changes, the program knows the old coordinates should be
+discarded and looked up again.
+
+\subsubsection{A loop that never waits}
+Project 3 played tones with \texttt{time.sleep\_ms()}, which is fine when the only job is making a
+noise. An alarm clock cannot do that: while it beeps it still has to redraw the screen and watch for
+you pressing the knob. So the beeping is broken into ``switch the sound on, and note when to switch
+it off again'':
+
+\begin{lstlisting}[language=Python, caption=Beeping without blocking]
+def tick(self, now_ms):
+    """Called every time round the main loop to keep the beeps going."""
+    if not self.ringing:
+        return
+    if time.ticks_diff(now_ms, self.next_change_ms) < 0:
+        return
+    if self.sounding:
+        self._off()
+        self.next_change_ms = time.ticks_add(now_ms, BEEP_OFF_MS)
+    else:
+        self._on(ALARM_TONE_HZ)
+        self.next_change_ms = time.ticks_add(now_ms, BEEP_ON_MS)
+\end{lstlisting}
+
+The main loop uses the same idea for everything slow. Rather than counting how long ago something
+happened, each job stores the time it is next \emph{due}:
+
+\begin{lstlisting}[language=Python, caption=The main loop]
+while True:
+    now_ms = time.ticks_ms()
+
+    self.handle_input()
+    self.check_alarm(now_ms)
+    self.beeper.tick(now_ms)
+    self.service_network(now_ms)
+
+    if time.ticks_diff(now_ms, last_draw_ms) > DRAW_INTERVAL_MS:
+        self.draw()
+        last_draw_ms = now_ms
+
+    time.sleep_ms(10)
+\end{lstlisting}
+
+The screen is redrawn four times a second and the weather is refetched every fifteen minutes, which
+also nudges the clock back into line, all without any part of the program waiting for another.
+
+\subsubsection{Drawing big digits}
+The OLED library can only print small 8-pixel text, which is far too fine to read across a room. The
+large clock digits are drawn the way a clock radio does it, out of seven rectangles per digit, with a
+dictionary saying which segments each numeral lights:
+
+\begin{lstlisting}[language=Python, caption=Seven-segment digits]
+SEGMENTS = {
+    "0": "ABCDEF",
+    "1": "BC",
+    "2": "ABDEG",
+    ...
+}
+
+for name in SEGMENTS.get(character, ""):
+    oled.fill_rect(*segments[name], 1)
+\end{lstlisting}
+
+\subsection{Hardware test checklist}
+\begin{enumerate}
+    \item On power-up the screen shows \textbf{JOINING} and then the clock face. If it shows
+          \textbf{NO WI-FI}, check the SSID and password you typed.
+    \item Turn the knob one click: the screen changes and you hear a small tick from the speaker.
+    \item Page to the Weather screen. A temperature and condition should appear within a few
+          seconds of starting up.
+    \item Page to the Alarm screen, press, and set the alarm a minute or two ahead. Press through to
+          \textbf{ARMED}, then watch for the bell appearing in the corner of the clock screen.
+    \item When the alarm rings, press to silence it. Unplug the board, plug it back in, and check
+          that your alarm time is still set.
+\end{enumerate}
 
 \begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!50!black]
     \textbf{If something does not work:}
     \begin{itemize}
-        \item \textbf{I\textsuperscript{2}C scan is empty:} Check the power (3.3V) and ground jumpers. Verify that SCL is on
-        GPIO 7 (\bbref{jumper.oled-scl.start} and \bbref{jumper.mpu-scl.start}) and SDA is on GPIO 6
-        (\bbref{jumper.oled-sda.start} and \bbref{jumper.mpu-sda.start}).
-        \item \textbf{OLED remains dark:} Check whether your OLED module has GND and VCC in reversed order.
-        Verify that \texttt{lib/ssd1306.py} was uploaded to the \texttt{lib/} folder.
-        \item \textbf{Ball moves backwards:} Tilting forwards should roll the ball down; tilting right should roll it right.
-        If an axis feels inverted, change \texttt{INVERT\_X} or \texttt{INVERT\_Y} from \texttt{False} to \texttt{True} at the
-        top of the script.
-        \item \textbf{Ball responds too slowly:} Increase \texttt{TILT\_SCALE} slightly. If very small tilts are ignored,
-        decrease \texttt{DEADZONE} slightly.
-        \item \textbf{Ball drifts or responds differently in opposite directions:} Restart the program and keep the
-        breadboard level and still during calibration. If it still drifts, slightly increase \texttt{DEADZONE}.
+        \item \textbf{Screen stays dark:} Check the OLED power and ground (\bbref{jumper.oled-power.start} to
+              \bbref{jumper.oled-power.end}, and \bbref{jumper.oled-ground.start} to \bbref{jumper.oled-ground.end}),
+              and check that the ground rail wire \bbref{jumper.mcu-ground.start} to \bbref{jumper.mcu-ground.end} is in place.
+              If the serial output shows an empty I\textsuperscript{2}C scan, check SCL on GPIO 7
+              (\bbref{jumper.oled-scl.start} to \bbref{jumper.oled-scl.end}) and SDA on GPIO 6
+              (\bbref{jumper.oled-sda.start} to \bbref{jumper.oled-sda.end}).
+        \item \textbf{It says NO WI-FI:} Check \texttt{WIFI\_SSID} and \texttt{WIFI\_PASSWORD} for typos. The
+              ESP32-C3 only joins 2.4\,GHz networks, so a 5\,GHz-only network will never appear. Networks
+              that make you accept terms in a browser first cannot be used at all.
+        \item \textbf{Clock is right but weather says NO DATA:} The board reached the network but not the
+              weather service. Watch the serial output: it prints the reason. A free public service is
+              sometimes simply overloaded, and the board retries every minute.
+        \item \textbf{It says No location found:} Make \texttt{CITY} more specific and check its spelling.
+              Use a full qualifier such as \texttt{"Springfield, Illinois"} rather than an abbreviation
+              if the shorter search does not find the intended place.
+        \item \textbf{The wrong city appears on the Weather screen:} Add the state, province, or country
+              after a comma in \texttt{CITY}. Restarting automatically replaces the cached coordinates
+              because the query changed.
+        \item \textbf{Time is off by a whole number of hours:} The offset comes from the weather reply, so
+              until the first successful fetch the clock uses \texttt{FALLBACK\_UTC\_OFFSET\_HOURS}. Check
+              that the city shown on the Weather screen is the place you intended.
+        \item \textbf{Knob turns the wrong way:} Change \texttt{reverse=True} to \texttt{reverse=False} in the
+              \texttt{RotaryIRQ} setup, as in Project 3.
+        \item \textbf{No sound:} Check the speaker signal on GPIO 20 (\bbref{jumper.speaker-signal.start} to
+              \bbref{jumper.speaker-signal.end}) and its ground (\bbref{jumper.speaker-ground.start} to
+              \bbref{jumper.speaker-ground.end}).
     \end{itemize}
 \end{tcolorbox}
 
 \section{Review}
-In this project, you combined motion sensing and display hardware on a single bus. You learned:
+In this project you built a complete, useful device that combines everything the earlier projects
+introduced with a set of new software ideas. You learned:
 \begin{itemize}
-    \item How the I\textsuperscript{2}C protocol connects multiple sensors and displays to just two microcontroller pins
-    \item How an accelerometer detects gravitational tilt
-    \item How to use MicroPython framebuffer commands (\texttt{fill}, \texttt{rect}, \texttt{fill\_rect}, \texttt{text})
-    \item How basic physics simulation (velocity, dampening friction, and bounding box collisions) creates fluid game movement
+    \item How joining a network in station mode differs from hosting one as an access point
+    \item How an HTTP request is built and how its reply is split into a status, headers, and content
+    \item How geocoding turns a human-readable city name into forecast coordinates
+    \item How to read real data out of a public web service's JSON
+    \item How a board with no clock of its own learns the time from a reply it already needed, and how
+          UTC becomes local time
+    \item How writing your own classes keeps a large program readable
+    \item How to store settings in a file so they outlive a power cut
+    \item Why a program that has several jobs must never sit inside \texttt{sleep}
 \end{itemize}
 
 \section{Possible Extensions}
 \begin{itemize}
-    \item \textbf{Design custom mazes:} Modify the \texttt{WALLS} list in the Python script to create your own challenging labyrinths.
-    \item \textbf{Add hazard holes:} Add circular ``pit'' zones that send the ball back to the starting point if touched!
-    \item \textbf{Add a timer:} Use \texttt{utime.ticks\_ms()} to track how fast players solve the maze and display their best time.
-    \item \textbf{Multi-level maze:} When the goal is reached, load a new, more difficult maze layout.
-    \item \textbf{Add sound effects:} Reconnect the speaker from Projects 3 and 4 to play a click when bumping into walls and a fanfare on victory!
+    \item \textbf{Auto-dimming:} Reconnect the LDR and 10\,k\si{\ohm} resistor from Project 1 to GPIO 2 and use
+          \texttt{oled.contrast()} to dim the display in a dark room.
+    \item \textbf{Sunrise alarm:} Reconnect the WS2812B strip from Project 4 and fade it up from red to white
+          over the minute before the alarm rings.
+    \item \textbf{A nicer alarm:} Replace the single beep with a melody, reusing the note tables from Project 4.
+    \item \textbf{A week's forecast:} Ask the service for \texttt{forecast\_days=5} and add a screen that pages
+          through the coming days.
+    \item \textbf{A second city:} Keep a list of city names in the settings file and let the knob choose which
+          place the weather screen shows, geocoding and caching each one as it is first used.
+    \item \textbf{Timer mode:} Add a screen that counts down a number of minutes you dial in, so the same
+          hardware doubles as a study or cooking timer.
+    \item \textbf{Remember more:} Save which screen you were on, and reopen it after a reboot.
 \end{itemize}

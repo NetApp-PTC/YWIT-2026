@@ -17,12 +17,21 @@ Ideas for 2026 microcontroller workshop
   - Write a local web server/app that displays a dashboard allowing control of LED lights
   - LEDs
 
-* ESP-NOW Hot Potato
+* ESP-NOW Hot Potato (not used)
   - The workshop leader has a board that has special leader code and can start the game
   - Once the leader presses the start button, a timer starts couting down on a random one of the student's boards
   - The student must pass the potato to another random student by pressing a button
   - This preserves the remaning time and the next student has to pass again before the timer runs out
   - Once the timer hits 0, the student holding the potato "loses"
+  - Dropped because it needs every student to reach this project at the same time, and a board
+    that only works as part of a group game is not much use to take home
+
+* Desk Companion
+  - A Wi-Fi clock, weather display, and alarm, used as the final project
+  - Joins an existing network (station mode) rather than hosting one like the mood lamp does
+  - Fetches the forecast from Open-Meteo over plain HTTP, and sets its clock from that reply's headers
+  - Rotary encoder pages through screens and sets the alarm; the alarm is saved to flash
+  - Reuses the OLED, encoder, and speaker on the same pins the earlier projects used
 
 * Safe Cracker
   - Uses a rotary encoder with a built-in pushbutton

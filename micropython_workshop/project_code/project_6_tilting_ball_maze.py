@@ -1,5 +1,5 @@
 """
-Project 7: Tilting Ball Maze
+Project 6: Tilting Ball Maze
 
 A handheld maze game using an MPU-6050 accelerometer and an SSD1306 OLED display.
 Tilt the breadboard to roll the ball sprite through the maze to the goal!
@@ -148,7 +148,7 @@ def calibrate_accelerometer(mpu, oled):
 
 
 def main():
-    print("--- Starting Project 7: Tilting Ball Maze ---")
+    print("--- Starting Project 6: Tilting Ball Maze ---")
 
     # Initialize shared I2C bus
     i2c = I2C(0, scl=Pin(PIN_SCL), sda=Pin(PIN_SDA), freq=400000)
