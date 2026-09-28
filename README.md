@@ -67,7 +67,7 @@ After changing a hole or connection in the project text, regenerate the diagrams
 
 ```sh
 cd micropython_workshop/project_guide
-python3 tools/breadboard_diagrams.py            # or --project 3
+python3 tools/diagram_generator.py              # or --project 3
 ```
 
 The script needs `rsvg-convert` to turn generated SVG into PNG (`brew install librsvg` on

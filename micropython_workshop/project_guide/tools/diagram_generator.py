@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-r"""Render breadboard diagrams from coordinates embedded in the project text.
+r"""Generate project-guide illustrations and breadboard wiring diagrams.
 
 The project guide is the single source of truth: ``\bbhole{name}{coordinate}``
 prints a coordinate in the PDF and gives it a stable name. This script reads
@@ -11,7 +11,7 @@ seating coordinates come from common/microcontroller_seating.tex and each projec
 contributes only its own components.
 
 Usage:
-    python3 tools/breadboard_diagrams.py [--project 3]
+    python3 tools/diagram_generator.py [--project 3]
 
 Writes PNG files under project_guide/images/. Requires rsvg-convert
 (brew install librsvg) to rasterize the generated SVG.

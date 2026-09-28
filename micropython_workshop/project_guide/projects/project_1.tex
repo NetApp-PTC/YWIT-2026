@@ -81,20 +81,7 @@ other in \bbhole{ldr-resistor.end}{A14}.
 The LDR and the 10\si{\kilo\ohm} resistor share column 10 to form a \textbf{voltage divider}:
 
 \begin{center}
-\begin{tikzpicture}[x=1cm, y=1cm, >=latex]
-    \node[draw, rounded corners, fill=red!10, text=black, inner sep=4pt] (vcc) at (0,0) {\textbf{3.3V}};
-    \node[draw, fill=yellow!15, text=black, inner sep=4pt] (ldr) at (2.2,0) {\textbf{LDR}};
-    \node[draw, circle, fill=blue!15, text=black, inner sep=2pt] (sense) at (4.8,0) {\textbf{Col 10}};
-    \node[draw, fill=blue!10, text=black, inner sep=4pt] (res) at (7.4,0) {\textbf{10\si{\kilo\ohm}}};
-    \node[draw, rounded corners, fill=gray!20, text=black, inner sep=4pt] (gnd) at (9.6,0) {\textbf{GND}};
-
-    \draw[->, thick] (vcc) -- (ldr);
-    \draw[->, thick] (ldr) -- (sense);
-    \draw[->, thick] (sense) -- (res);
-    \draw[->, thick] (res) -- (gnd);
-    
-    \draw[->, thick, blue!80!black] (sense) -- ++(0,-0.8) node[below, font=\small] {\textbf{GPIO 2 (ADC input)}};
-\end{tikzpicture}
+\maybeincludegraphics[width=.95\linewidth]{project_1/voltage_divider.png}
 \end{center}
 
 Because the microcontroller's analog pin measures \textbf{voltage} rather than resistance directly,
