@@ -67,7 +67,37 @@ seats it in a different place to make room for the encoder.
 
 \subsection{Creating the circuit}
 
-\input{common/microcontroller_seating.tex}
+Leave the microcontroller seated in the standard position shown in Project 1. Refer back to
+that chapter's seating instructions if you need help.
+
+\subsubsection{Place the components}
+Seat the encoder's five-pin header along the front edge of the board, knob facing you, so the pins
+land in silkscreen order: \textbf{GND} in \bbhole{encoder.header.ground}{A10},
+\textbf{+} in \bbhole{encoder.header.power}{A11}, \textbf{SW} in
+\bbhole{encoder.header.sw}{A12}, \textbf{DT} in \bbhole{encoder.header.dt}{A13}, and
+\textbf{CLK} in \bbhole{encoder.header.clk}{A14}.
+
+Seat the OLED's four-pin header in column \textbf{A} further along the board, clear of the
+encoder's body: \textbf{GND} into \bbhole{oled.header.ground}{A19},
+\textbf{VCC} into \bbhole{oled.header.power}{A20},
+\textbf{SCL} into \bbhole{oled.header.scl}{A21}, and
+\textbf{SDA} into \bbhole{oled.header.sda}{A22}.
+
+\begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!50!black]
+    \textbf{Check the OLED pin order:} most modules read \textbf{GND, VCC, SCL, SDA}, but some
+    swap \textbf{VCC} and \textbf{GND}. Read the silkscreen on your own board before powering it
+    on, and use \textbf{3.3V} rather than 5V.
+\end{tcolorbox}
+
+Insert the speaker's two Dupont leads into the front half of the board, past the display: the
+positive red lead into \bbhole{speaker.lead.signal}{C26} and the negative black lead into
+\bbhole{speaker.lead.ground}{C28}.
+
+\begin{figure}[H]
+    \centering
+    \maybeincludegraphics[width=.95\linewidth]{project_7/components_placed.png}
+    \caption{The encoder, OLED, and speaker are placed, before adding jumper wires.}
+\end{figure}
 
 \subsubsection{Ground rail distribution}
 Three separate peripherals need a ground connection in this project, which is more than the
@@ -85,13 +115,7 @@ connection after this taps the rail instead:
 \end{tabular}
 \end{center}
 
-\subsubsection{KY-040 encoder placement and wiring}
-Seat the encoder's five-pin header along the front edge of the board, knob facing you, so the pins
-land in silkscreen order: \textbf{GND} in \bbhole{encoder.header.ground}{A10},
-\textbf{+} in \bbhole{encoder.header.power}{A11},
-\textbf{SW} in \bbhole{encoder.header.sw}{A12},
-\textbf{DT} in \bbhole{encoder.header.dt}{A13}, and
-\textbf{CLK} in \bbhole{encoder.header.clk}{A14}.
+\subsubsection{Wire the KY-040 encoder}
 These are the same three signal pins the encoder used in Project 3, so the code reads the knob
 exactly as the Safe Cracker did:
 
@@ -109,19 +133,7 @@ exactly as the Safe Cracker did:
 \end{tabular}
 \end{center}
 
-\subsubsection{OLED display placement and wiring}
-Seat the OLED's four-pin header in column \textbf{A} further along the board, clear of the
-encoder's body: \textbf{GND} into \bbhole{oled.header.ground}{A19},
-\textbf{VCC} into \bbhole{oled.header.power}{A20},
-\textbf{SCL} into \bbhole{oled.header.scl}{A21}, and
-\textbf{SDA} into \bbhole{oled.header.sda}{A22}.
-
-\begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!50!black]
-    \textbf{Check your OLED pins again:} as in Project 6, most modules read \textbf{GND, VCC, SCL,
-    SDA}, but some swap \textbf{VCC} and \textbf{GND}. Read the silkscreen on your own board before
-    powering it on, and power it from \textbf{3.3V} rather than 5V.
-\end{tcolorbox}
-
+\subsubsection{Wire the OLED display}
 \begin{center}
 \begin{tabular}{|l|l|l|}
     \hline
@@ -138,11 +150,8 @@ encoder's body: \textbf{GND} into \bbhole{oled.header.ground}{A19},
 The screen keeps the I\textsuperscript{2}C pins it used in Project 6: \textbf{GPIO 7} for the clock
 line and \textbf{GPIO 6} for the data line.
 
-\subsubsection{Speaker placement and wiring}
-Insert the speaker's two Dupont leads into the front half of the board, past the display: the
-positive red lead into \bbhole{speaker.lead.signal}{C26} and the negative black lead into
-\bbhole{speaker.lead.ground}{C28}. The speaker returns to \textbf{GPIO 20}, the pin it used in
-Project 3:
+\subsubsection{Wire the speaker}
+The speaker returns to \textbf{GPIO 20}, the pin it used in Project 3:
 
 \begin{center}
 \begin{tabular}{|l|l|l|}

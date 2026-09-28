@@ -2566,6 +2566,72 @@ def diagram_project_7_wiring() -> Drawing:
     return d
 
 
+def diagram_project_2_components_placed() -> Drawing:
+    d = Drawing(MARGIN_T_MODULE)
+    draw_breadboard(d)
+    draw_xiao(d)
+    draw_tactile_button(d, named_hole("button.side-a"), named_hole("button.side-b"))
+    draw_pixel_module(d)
+    return d
+
+
+def diagram_project_3_components_placed() -> Drawing:
+    d = Drawing(MARGIN_T, MARGIN_B_ENCODER)
+    draw_breadboard(d)
+    draw_xiao(d)
+    draw_rotary_encoder(d)
+    draw_speaker(d)
+    return d
+
+
+def diagram_project_4_components_placed() -> Drawing:
+    d = Drawing(MARGIN_T_MODULE, MARGIN_B_ENCODER)
+    draw_breadboard(d)
+    draw_xiao(d)
+    draw_tactile_button(
+        d, named_hole("pad0.side-a"), named_hole("pad0.side-b"), "Pad 0",
+        label_offset_x=0, anchor="middle",
+    )
+    draw_tactile_button(
+        d, named_hole("pad1.side-a"), named_hole("pad1.side-b"), "Pad 1",
+        label_offset_x=0, anchor="middle",
+    )
+    draw_tactile_button(
+        d, named_hole("pad2.side-a"), named_hole("pad2.side-b"), "Pad 2",
+        label_offset_x=0, anchor="middle",
+    )
+    draw_pixel_module(d, pcb_row=18)
+    draw_speaker(d)
+    return d
+
+
+def diagram_project_5_components_placed() -> Drawing:
+    d = Drawing(MARGIN_T_MODULE)
+    draw_breadboard(d)
+    draw_xiao(d)
+    draw_pixel_module(d)
+    return d
+
+
+def diagram_project_6_components_placed() -> Drawing:
+    d = Drawing(70, 120)
+    draw_breadboard(d)
+    draw_xiao(d)
+    draw_mpu6050(d)
+    draw_oled_module(d)
+    return d
+
+
+def diagram_project_7_components_placed() -> Drawing:
+    d = Drawing(MARGIN_T, MARGIN_B_ENCODER)
+    draw_breadboard(d)
+    draw_xiao(d)
+    draw_rotary_encoder(d)
+    draw_speaker(d)
+    draw_oled_module(d, _oled_screen_clock)
+    return d
+
+
 @dataclass(frozen=True)
 class ProjectDiagrams:
     """One project's TeX source and the diagrams drawn from its coordinates."""
@@ -2596,32 +2662,50 @@ PROJECTS = {
     2: ProjectDiagrams(
         source=PROJECT_GUIDE_DIR / "projects" / "project_2.tex",
         coordinates=PIXEL_MODULE_COORDINATES | BUTTON_COORDINATES,
-        outputs={"project_2/wiring.png": diagram_project_2_wiring},
+        outputs={
+            "project_2/components_placed.png": diagram_project_2_components_placed,
+            "project_2/wiring.png": diagram_project_2_wiring,
+        },
     ),
     3: ProjectDiagrams(
         source=PROJECT_GUIDE_DIR / "projects" / "project_3.tex",
         coordinates=ENCODER_COORDINATES | SPEAKER_COORDINATES,
-        outputs={"project_3/wiring.png": diagram_project_3_wiring},
+        outputs={
+            "project_3/components_placed.png": diagram_project_3_components_placed,
+            "project_3/wiring.png": diagram_project_3_wiring,
+        },
     ),
     4: ProjectDiagrams(
         source=PROJECT_GUIDE_DIR / "projects" / "project_4.tex",
         coordinates=PROJECT_4_COORDINATES,
-        outputs={"project_4/wiring.png": diagram_project_4_wiring},
+        outputs={
+            "project_4/components_placed.png": diagram_project_4_components_placed,
+            "project_4/wiring.png": diagram_project_4_wiring,
+        },
     ),
     5: ProjectDiagrams(
         source=PROJECT_GUIDE_DIR / "projects" / "project_5.tex",
         coordinates=PIXEL_MODULE_COORDINATES,
-        outputs={"project_5/wiring.png": diagram_project_5_wiring},
+        outputs={
+            "project_5/components_placed.png": diagram_project_5_components_placed,
+            "project_5/wiring.png": diagram_project_5_wiring,
+        },
     ),
     6: ProjectDiagrams(
         source=PROJECT_GUIDE_DIR / "projects" / "project_6.tex",
         coordinates=PROJECT_6_COORDINATES,
-        outputs={"project_6/wiring.png": diagram_project_6_wiring},
+        outputs={
+            "project_6/components_placed.png": diagram_project_6_components_placed,
+            "project_6/wiring.png": diagram_project_6_wiring,
+        },
     ),
     7: ProjectDiagrams(
         source=PROJECT_GUIDE_DIR / "projects" / "project_7.tex",
         coordinates=PROJECT_7_COORDINATES,
-        outputs={"project_7/wiring.png": diagram_project_7_wiring},
+        outputs={
+            "project_7/components_placed.png": diagram_project_7_components_placed,
+            "project_7/wiring.png": diagram_project_7_wiring,
+        },
     ),
 }
 

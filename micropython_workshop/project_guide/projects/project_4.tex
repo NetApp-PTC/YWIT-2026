@@ -49,7 +49,29 @@ microcontroller seated in the breadboard.
 
 \subsection{Creating the circuit}
 
-\input{common/microcontroller_seating.tex}
+Leave the microcontroller seated in the standard position shown in Project 1. Refer back to
+that chapter's seating instructions if you need help.
+
+\subsubsection{Place the components}
+Insert the WS2812B strip's three pins into row \textbf{F} (rows 22--24) on the right side of the
+breadboard: \textbf{5V} into \bbhole{pixels.header.power}{F22}, \textbf{DI} into
+\bbhole{pixels.header.data}{F23}, and \textbf{GND} into \bbhole{pixels.header.ground}{F24}.
+Seat the three pushbuttons in the lower half of the breadboard spanning columns \textbf{A} through
+\textbf{D}:
+\begin{itemize}
+    \item \textbf{Pad 0 (Loop/Bass):} Place one pair of legs in \bbhole{pad0.side-a}{A10} and \textbf{D10}, and the other pair in \bbhole{pad0.side-b}{A12} and \textbf{D12}.
+    \item \textbf{Pad 1 (Mid note):} Place one pair of legs in \bbhole{pad1.side-a}{A14} and \textbf{D14}, and the other pair in \bbhole{pad1.side-b}{A16} and \textbf{D16}.
+    \item \textbf{Pad 2 (High note):} Place one pair of legs in \bbhole{pad2.side-a}{A18} and \textbf{D18}, and the other pair in \bbhole{pad2.side-b}{A20} and \textbf{D20}.
+\end{itemize}
+Insert the speaker's two Dupont leads into the lower half of the breadboard: the positive red lead
+into \bbhole{speaker.lead.signal}{C26} and the negative black lead into
+\bbhole{speaker.lead.ground}{C28}.
+
+\begin{figure}[H]
+    \centering
+    \maybeincludegraphics[width=.95\linewidth]{project_4/components_placed.png}
+    \caption{The LED strip, three buttons, and speaker are placed, before adding jumper wires.}
+\end{figure}
 
 \subsubsection{Ground rail distribution}
 Because we have multiple components requiring a ground connection, we connect the microcontroller's
@@ -65,14 +87,7 @@ Because we have multiple components requiring a ground connection, we connect th
 \end{tabular}
 \end{center}
 
-\subsubsection{WS2812B LED strip placement and wiring}
-The LED strip has a right-angle header so it stands upright once seated.
-Insert those three pins into row \textbf{F} (rows 22--24) on the right side of the breadboard so it is
-clearly visible and not obscured by jumper wires:
-\textbf{5V} into \bbhole{pixels.header.power}{F22},
-\textbf{DI} into \bbhole{pixels.header.data}{F23}, and
-\textbf{GND} into \bbhole{pixels.header.ground}{F24}.
-Then connect the jumper wires:
+\subsubsection{Wire the WS2812B LED strip}
 
 \begin{center}
 \begin{tabular}{|l|l|l|}
@@ -86,14 +101,7 @@ Then connect the jumper wires:
 \end{tabular}
 \end{center}
 
-\subsubsection{Tactile button placement and wiring}
-Seat the three pushbuttons in the lower half of the breadboard spanning columns \textbf{A} through \textbf{D}:
-\begin{itemize}
-    \item \textbf{Pad 0 (Loop/Bass):} Place one pair of legs in \bbhole{pad0.side-a}{A10} and \textbf{D10}, and the other pair in \bbhole{pad0.side-b}{A12} and \textbf{D12}.
-    \item \textbf{Pad 1 (Mid note):} Place one pair of legs in \bbhole{pad1.side-a}{A14} and \textbf{D14}, and the other pair in \bbhole{pad1.side-b}{A16} and \textbf{D16}.
-    \item \textbf{Pad 2 (High note):} Place one pair of legs in \bbhole{pad2.side-a}{A18} and \textbf{D18}, and the other pair in \bbhole{pad2.side-b}{A20} and \textbf{D20}.
-\end{itemize}
-
+\subsubsection{Wire the tactile buttons}
 Connect each button's signal leg (column \textbf{E}) to the microcontroller:
 \begin{center}
 \begin{tabular}{|l|l|l|}
@@ -120,10 +128,8 @@ Next, wire each button's ground leg (column \textbf{E}) to the top ground rail:
 \end{tabular}
 \end{center}
 
-\subsubsection{Speaker placement and wiring}
-Insert the speaker's two Dupont leads into the lower half of the breadboard:
-the positive red lead into \bbhole{speaker.lead.signal}{C26} and the negative black lead into \bbhole{speaker.lead.ground}{C28}.
-Then connect the speaker signal and ground jumpers:
+\subsubsection{Wire the speaker}
+Connect the speaker signal and ground jumpers:
 
 \begin{center}
 \begin{tabular}{|l|l|l|}

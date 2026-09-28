@@ -76,9 +76,10 @@ firmly seated in its standard position.
 
 \subsection{Creating the circuit}
 
-\input{common/microcontroller_seating.tex}
+Leave the microcontroller seated in the standard position shown in Project 1. Refer back to
+that chapter's seating instructions if you need help.
 
-\subsubsection{MPU-6050 accelerometer placement and wiring}
+\subsubsection{Place the components}
 The MPU-6050 (GY-521) breakout board connects with straight-through header pins and sits flat facing upward.
 Push the module's eight pins into column \textbf{A} (rows 12--19) on the front of the breadboard:
 \textbf{INT} into \bbhole{mpu.header.int}{A12},
@@ -90,8 +91,29 @@ Push the module's eight pins into column \textbf{A} (rows 12--19) on the front o
 \textbf{GND} into \bbhole{mpu.header.gnd}{A18}, and
 \textbf{VCC} into \bbhole{mpu.header.vcc}{A19}.
 
-Only four pins (VCC, GND, SCL, SDA) are needed. Pins INT, AD0, XCL, and XDA remain unconnected.
-Connect the MPU-6050 jumpers into the corresponding holes in row \textbf{E}:
+Only four pins (VCC, GND, SCL, SDA) are used; leave INT, AD0, XCL, and XDA unconnected.
+
+The 0.96-inch SSD1306 OLED module also connects with straight-through header pins, sitting flat facing upward.
+Insert its four pins into column \textbf{A} (rows 25--28) next to the accelerometer:
+\textbf{GND} into \bbhole{oled.header.ground}{A25},
+\textbf{VCC} into \bbhole{oled.header.power}{A26},
+\textbf{SCL} into \bbhole{oled.header.scl}{A27}, and
+\textbf{SDA} into \bbhole{oled.header.sda}{A28}.
+
+\begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!50!black]
+    \textbf{Check your OLED pins:} Most OLED displays have the pin order \textbf{GND, VCC, SCL, SDA}.
+    However, some modules swap \textbf{VCC} and \textbf{GND}. Always check the silkscreen labels printed on
+    your specific OLED board before powering on!
+\end{tcolorbox}
+
+\begin{figure}[H]
+    \centering
+    \maybeincludegraphics[width=.95\linewidth]{project_6/components_placed.png}
+    \caption{The accelerometer and OLED are placed, before adding jumper wires.}
+\end{figure}
+
+\subsubsection{Wire the MPU-6050 accelerometer}
+Connect its four used pins to the corresponding holes in row \textbf{E}:
 
 \begin{center}
 \begin{tabular}{|l|l|l|}
@@ -106,20 +128,7 @@ Connect the MPU-6050 jumpers into the corresponding holes in row \textbf{E}:
 \end{tabular}
 \end{center}
 
-\subsubsection{OLED display placement and wiring}
-The 0.96-inch SSD1306 OLED module also connects with straight-through header pins, sitting flat facing upward.
-Insert the four pins into column \textbf{A} (rows 25--28) next to the accelerometer:
-\textbf{GND} into \bbhole{oled.header.ground}{A25},
-\textbf{VCC} into \bbhole{oled.header.power}{A26},
-\textbf{SCL} into \bbhole{oled.header.scl}{A27}, and
-\textbf{SDA} into \bbhole{oled.header.sda}{A28}.
-
-\begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!50!black]
-    \textbf{Check your OLED pins:} Most OLED displays have the pin order \textbf{GND, VCC, SCL, SDA}.
-    However, some modules swap \textbf{VCC} and \textbf{GND}. Always check the silkscreen labels printed on
-    your specific OLED board before powering on!
-\end{tcolorbox}
-
+\subsubsection{Wire the OLED display}
 Connect the OLED by daisy-chaining power, ground, clock, and data directly from the accelerometer:
 
 \begin{center}
@@ -144,7 +153,7 @@ row 28. Both devices therefore share the same power and I\textsuperscript{2}C bu
 \begin{figure}[H]
     \centering
     \maybeincludegraphics[width=.95\linewidth]{project_6/wiring.png}
-    \caption{Connect both the OLED display and MPU-6050 accelerometer to the shared I2C bus.}
+    \caption{The OLED display and MPU-6050 accelerometer are fully wired to the shared I2C bus.}
 \end{figure}
 
 \subsection{Programming the microcontroller}

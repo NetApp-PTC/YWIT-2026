@@ -41,13 +41,25 @@ Before starting Project 2, remove components and wires from the previous project
 
 \subsection{Creating the circuit}
 
-\input{common/microcontroller_seating.tex}
+Leave the microcontroller seated in the standard position shown in Project 1. Refer back to
+that chapter's seating instructions if you need help.
 
-\subsubsection{WS2812B strip wiring}
-The LED strip has a right-angle header so it stands upright once seated.
-Push those three pins into the top half of the board: \textbf{5V} into
-\bbhole{pixels.header.power}{J12}, \textbf{DI} into \bbhole{pixels.header.data}{J13}, and
-\textbf{GND} into \bbhole{pixels.header.ground}{J14}. Then add these connections:
+\subsubsection{Place the components}
+The LED strip has a right-angle header so it stands upright once seated. Push its three pins into
+the top half of the board: \textbf{5V} into \bbhole{pixels.header.power}{J12}, \textbf{DI} into
+\bbhole{pixels.header.data}{J13}, and \textbf{GND} into \bbhole{pixels.header.ground}{J14}.
+Press the button into the bottom edge of the board so its legs reach from column \textbf{A} up to
+column \textbf{D}. One pair of legs goes into \bbhole{button.side-a}{A12} and \textbf{D12}; the
+other pair goes into \bbhole{button.side-b}{A14} and \textbf{D14}. The two legs of each pair are
+already joined inside the button.
+
+\begin{figure}[H]
+    \centering
+    \maybeincludegraphics[width=.95\linewidth]{project_2/components_placed.png}
+    \caption{The LED strip and button are placed, before adding jumper wires.}
+\end{figure}
+
+\subsubsection{Wire the WS2812B strip}
 \begin{center}
 \begin{tabular}{|l|l|l|}
     \hline
@@ -60,12 +72,8 @@ Push those three pins into the top half of the board: \textbf{5V} into
 \end{tabular}
 \end{center}
 
-\subsubsection{Button wiring}
-Press the button into the bottom edge of the board so that its legs reach from column \textbf{A}
-up to column \textbf{D}. One pair of legs goes into \bbhole{button.side-a}{A12} and \textbf{D12},
-and the other pair two rows along into \bbhole{button.side-b}{A14} and \textbf{D14}. The two legs
-of a pair are already joined inside the button, so it is the gap between the two pairs that the
-button closes. Then add these connections:
+\subsubsection{Wire the button}
+The gap between the button's two pairs of legs is what the button closes. Add these connections:
 \begin{center}
 \begin{tabular}{|l|l|l|}
     \hline
@@ -82,7 +90,7 @@ The code enables the internal pull-up resistor, so the pin reads HIGH when idle 
 \begin{figure}[H]
     \centering
     \maybeincludegraphics[width=.95\linewidth]{project_2/wiring.png}
-    \caption{Connect the LED strip and button to the XIAO ESP32-C3.}
+    \caption{The LED strip and button are fully wired to the XIAO ESP32-C3.}
 \end{figure}
 
 \subsection{Programming the microcontroller}

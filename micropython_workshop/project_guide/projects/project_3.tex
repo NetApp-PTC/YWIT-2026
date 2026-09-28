@@ -46,7 +46,8 @@ entirely driven by sound and a single knob—no screen required!
 Before beginning, remove any components from prior chapters including LEDs, buttons, and wires.
 You may leave the microcontroller attached to the breadboard.
 
-\input{common/microcontroller_seating.tex}
+Leave the microcontroller seated in the standard position shown in Project 1. Refer back to
+that chapter's seating instructions if you need help.
 
 \subsection{Understanding the KY-040 Rotary Encoder}
 
@@ -73,10 +74,9 @@ Hold the module with the knob facing you and the pins pointing down: the silkscr
 
 \subsection{Creating the circuit}
 
-Using jumper cables, assemble the circuit according to the following wiring table. The encoder and
-speaker share the breadboard with the microcontroller.
+The encoder and speaker share the breadboard with the microcontroller.
 
-\subsubsection{KY-040 Encoder Wiring}
+\subsubsection{Place the components}
 
 Seat the encoder module's five-pin header along the front edge of the breadboard, knob facing
 you, so the pins land in silkscreen order: \textbf{GND} in
@@ -84,8 +84,18 @@ you, so the pins land in silkscreen order: \textbf{GND} in
 \bbhole{encoder.header.power}{A13}, \textbf{SW} in
 \bbhole{encoder.header.sw}{A14}, \textbf{DT} in
 \bbhole{encoder.header.dt}{A15}, and \textbf{CLK} in
-\bbhole{encoder.header.clk}{A16}. Row A leaves the knob clear of the other wiring, so it is
-easier to grip and turn. Then add these connections:
+\bbhole{encoder.header.clk}{A16}. Row A leaves the knob clear of other components, making it
+easier to grip and turn. Insert the speaker's adapted Dupont leads into the bottom half of the
+breadboard: the positive lead in \bbhole{speaker.lead.signal}{C20} and the negative lead in
+\bbhole{speaker.lead.ground}{C22}.
+
+\begin{figure}[H]
+    \centering
+    \maybeincludegraphics[width=.95\linewidth]{project_3/components_placed.png}
+    \caption{The encoder and speaker are placed, before adding jumper wires.}
+\end{figure}
+
+\subsubsection{Wire the KY-040 encoder}
 \begin{center}
 \begin{tabular}{|l|l|l|}
     \hline
@@ -100,11 +110,7 @@ easier to grip and turn. Then add these connections:
 \end{tabular}
 \end{center}
 
-\subsubsection{Speaker Wiring}
-
-Insert the speaker's adapted Dupont leads into the bottom half of the breadboard:
-the positive lead in \bbhole{speaker.lead.signal}{C20} and the negative lead in
-\bbhole{speaker.lead.ground}{C22}. Then add these connections:
+\subsubsection{Wire the speaker}
 \begin{center}
 \begin{tabular}{|l|l|l|}
     \hline
@@ -119,7 +125,7 @@ the positive lead in \bbhole{speaker.lead.signal}{C20} and the negative lead in
 \begin{figure}[H]
     \centering
     \maybeincludegraphics[width=.95\linewidth]{project_3/wiring.png}
-    \caption{Encoder and speaker wired to the XIAO ESP32-C3}
+    \caption{The encoder and speaker are fully wired to the XIAO ESP32-C3.}
 \end{figure}
 
 \subsection{Understanding the Code}
