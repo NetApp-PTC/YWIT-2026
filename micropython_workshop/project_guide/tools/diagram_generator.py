@@ -10,6 +10,10 @@ Every project is drawn on the same breadboard with the same seated module, so th
 seating coordinates come from common/microcontroller_seating.tex and each project
 contributes only its own components.
 
+Jumper colours are a guide, checked as each diagram is drawn: black and brown
+are GND, red is 3.3 V, and orange is 5 V. The kit has two jumpers of each
+colour, so a crowded diagram may use another colour once those are used up.
+
 Usage:
     python3 tools/diagram_generator.py [--project 3]
 
@@ -118,27 +122,46 @@ SWITCH_CAP = "#4b5157"
 
 WIRE_BLACK = "#2b2b2b"
 WIRE_WHITE = "#f4f4f2"
+WIRE_GREY = "#8a8f94"
 WIRE_PURPLE = "#7657a8"
 WIRE_BLUE = "#2563b8"
 WIRE_GREEN = "#1f8a5a"
 WIRE_YELLOW = "#e3b505"
 WIRE_ORANGE = "#ef7d19"
 WIRE_RED = "#d62828"
+WIRE_BROWN = "#7a4a26"
 
+# The jumper colours in the workshop kit, JUMPERS_PER_COLOUR of each.
 JUMPER_COLOUR_NAMES = {
     WIRE_BLACK: "black",
     WIRE_WHITE: "white",
+    WIRE_GREY: "grey",
     WIRE_PURPLE: "purple",
     WIRE_BLUE: "blue",
     WIRE_GREEN: "green",
     WIRE_YELLOW: "yellow",
     WIRE_ORANGE: "orange",
     WIRE_RED: "red",
+    WIRE_BROWN: "brown",
 }
 JUMPERS_PER_COLOUR = 2
 
+# Supply nets keep stable colours across projects: black and brown are GND, red
+# is 3.3 V, and orange is 5 V. Each colour may appear only JUMPERS_PER_COLOUR
+# times, so once a net's colours are used up a further wire of that net takes
+# another colour. Signal wires leave these colours free until the supply wires
+# have claimed them.
+SUPPLY_COLOURS = {
+    "gnd": (WIRE_BLACK, WIRE_BROWN),
+    "3v3": (WIRE_RED,),
+    "5v": (WIRE_ORANGE,),
+}
+
 ACCENT = "#1f6f8b"
 ACCENT_DARK_YELLOW = "#9c7a00"
+# Orange insulation is light as text on the white page, so 5 V callouts use a
+# darker orange that still reads as the same wire.
+CALLOUT_ORANGE = "#c25c00"
 
 # XIAO ESP32-C3 pins, ordered row 1 -> row 7 down each pin column. The board's
 # own silkscreen is on the underside, so these are labelled with the GPIO
@@ -490,6 +513,8 @@ class Drawing:
         self.parts: list[str] = []
         self.defs: list[str] = []
         self.jumper_colours: Counter[str] = Counter()
+        # (supply role, colour name) for every GND, 3.3 V, and 5 V jumper.
+        self.supply_jumpers: list[tuple[str, str]] = []
 
     def add(self, markup: str) -> None:
         self.parts.append(markup)
@@ -513,7 +538,35 @@ class Drawing:
             f'text-anchor="{anchor}">{esc(content)}</text>'
         )
 
+    def _check_supply_colours(self) -> None:
+        """Prefer black or brown for GND, red for 3.3 V, and orange for 5 V.
+
+        Every supply wire takes one of its net's colours while the diagram still
+        has some of them left. Further wires of the same net, once all of those
+        are used, may use another colour.
+        """
+        by_supply: dict[str, list[str]] = {}
+        for supply, colour_name in self.supply_jumpers:
+            by_supply.setdefault(supply, []).append(colour_name)
+
+        for supply, preferred in SUPPLY_COLOURS.items():
+            colours = by_supply.get(supply)
+            if not colours:
+                continue
+            preferred_names = [JUMPER_COLOUR_NAMES[colour] for colour in preferred]
+            preferred_used = sum(name in preferred_names for name in colours)
+            expected = min(len(colours), JUMPERS_PER_COLOUR * len(preferred))
+            if preferred_used < expected:
+                wanted = " or ".join(preferred_names)
+                raise ValueError(
+                    f"{expected - preferred_used} more {supply} jumper(s) should be "
+                    f"{wanted} ({preferred_used} of {len(colours)} are). Use "
+                    f"{wanted} for {supply} until those jumpers are used up; only "
+                    f"then pick another colour"
+                )
+
     def render(self) -> str:
+        self._check_supply_colours()
         defs = "\n".join(self.defs)
         body = "\n".join(self.parts)
         canvas_h = self.canvas_height or BOARD_H + self.margin_top + self.margin_bottom
@@ -1548,8 +1601,26 @@ def _quad_point(p0, c, p1, t):
     )
 
 
-def draw_jumper(d: Drawing, start: str, end: str, colour: str, control: tuple[float, float]) -> None:
-    """A jumper wire drawn as an arc that never crosses the module body."""
+def draw_jumper(
+    d: Drawing,
+    start: str,
+    end: str,
+    colour: str,
+    control: tuple[float, float],
+    *,
+    supply: str | None = None,
+) -> None:
+    """A jumper wire drawn as an arc that never crosses the module body.
+
+    ``supply`` marks a power net: ``"gnd"`` (black or brown), ``"3v3"`` (red),
+    or ``"5v"`` (orange). Pass it for every wire of that net, including the ones
+    that had to take another colour because the preferred colour was used up.
+    """
+    if supply is not None and supply not in SUPPLY_COLOURS:
+        known = ", ".join(SUPPLY_COLOURS)
+        raise ValueError(
+            f"jumper {start}->{end} has unknown supply {supply!r}; use one of {known}"
+        )
     try:
         colour_name = JUMPER_COLOUR_NAMES[colour]
     except KeyError as exc:
@@ -1558,6 +1629,8 @@ def draw_jumper(d: Drawing, start: str, end: str, colour: str, control: tuple[fl
             f"jumper {start}->{end} uses unavailable colour {colour!r}; "
             f"choose from {available}"
         ) from exc
+    if supply is not None:
+        d.supply_jumpers.append((supply, colour_name))
     d.jumper_colours[colour_name] += 1
     if d.jumper_colours[colour_name] > JUMPERS_PER_COLOUR:
         raise ValueError(
@@ -1965,16 +2038,18 @@ def diagram_jumper_illustration() -> Drawing:
 
     wire_colours = (
         WIRE_RED,
-        WIRE_BLACK,
-        WIRE_WHITE,
         WIRE_ORANGE,
+        WIRE_BLACK,
+        WIRE_BROWN,
+        WIRE_WHITE,
+        WIRE_GREY,
         WIRE_YELLOW,
         WIRE_GREEN,
         WIRE_BLUE,
         WIRE_PURPLE,
     )
     for index, colour in enumerate(wire_colours):
-        y = 82 + index * 68
+        y = 70 + index * 56
         left_connector_x = 112 + (index % 2) * 8
         right_connector_x = 1320 - (index % 2) * 8
         bend = (index - (len(wire_colours) - 1) / 2) * 5
@@ -2107,28 +2182,33 @@ def diagram_wired_up() -> Drawing:
     sensor_start = named_hole("jumper.sensor.start")
     sensor_end = named_hole("jumper.sensor.end")
 
-    draw_jumper(d, power_start, power_end, WIRE_ORANGE, (row_x(5), -70))
-    draw_jumper(d, ldr_ground_start, ldr_ground_end, WIRE_BLACK, (row_x(6), -18))
-    draw_jumper(d, led_ground_start, led_ground_end, WIRE_BLACK, (row_x(9), 26))
-    draw_jumper(d, led_start, led_end, WIRE_RED, (row_x(10), 74))
+    draw_jumper(d, power_start, power_end, WIRE_RED, (row_x(5), -70), supply="3v3")
+    draw_jumper(d, ldr_ground_start, ldr_ground_end, WIRE_BLACK, (row_x(6), -18), supply="gnd")
+    draw_jumper(d, led_ground_start, led_ground_end, WIRE_BLACK, (row_x(9), 26), supply="gnd")
+    draw_jumper(d, led_start, led_end, WIRE_GREEN, (row_x(10), 74))
     draw_jumper(d, sensor_start, sensor_end, WIRE_YELLOW, (row_x(5), 400))
 
     callout(d, led_ground_start, f"GND \u00b7 {led_ground_start}", (30, LABEL_Y_TOP), colour=WIRE_BLACK, anchor="start")
     callout(d, ldr_ground_start, f"GND \u00b7 {ldr_ground_start}", (168, LABEL_Y_TOP), colour=WIRE_BLACK, anchor="start")
-    callout(d, power_start, f"3.3 V \u00b7 {power_start}", (306, LABEL_Y_TOP), colour="#c25c00", anchor="start")
-    callout(d, led_start, f"GPIO 20 \u00b7 {led_start}", (450, LABEL_Y_TOP), colour=WIRE_RED, anchor="start")
+    callout(d, power_start, f"3.3 V \u00b7 {power_start}", (306, LABEL_Y_TOP), colour=WIRE_RED, anchor="start")
+    callout(d, led_start, f"GPIO 20 \u00b7 {led_start}", (450, LABEL_Y_TOP), colour=WIRE_GREEN, anchor="start")
     callout(d, sensor_start, f"GPIO 2 \u00b7 {sensor_start}", (26, LABEL_Y_BOTTOM), colour=ACCENT_DARK_YELLOW, anchor="start")
     return d
 
 
-def _pixel_module_jumpers(d: Drawing, power_colour: str) -> None:
-    """The three wires from the module's holes back to the seated module's pins."""
+def _pixel_module_jumpers(d: Drawing, power_colour: str, power_supply: str) -> None:
+    """The three wires from the module's holes back to the seated module's pins.
+
+    ``power_supply`` is ``"3v3"`` (red) or ``"5v"`` (orange), matching the pin
+    the strip is actually powered from.
+    """
     draw_jumper(
         d,
         named_hole("jumper.pixels-power.start"),
         named_hole("jumper.pixels-power.end"),
         power_colour,
         (row_x(7), -20),
+        supply=power_supply,
     )
     draw_jumper(
         d,
@@ -2143,6 +2223,7 @@ def _pixel_module_jumpers(d: Drawing, power_colour: str) -> None:
         named_hole("jumper.pixels-ground.end"),
         WIRE_BLACK,
         (row_x(8), -60),
+        supply="gnd",
     )
 
 
@@ -2152,7 +2233,7 @@ def diagram_project_2_wiring() -> Drawing:
     draw_xiao(d)
     draw_tactile_button(d, named_hole("button.side-a"), named_hole("button.side-b"))
 
-    _pixel_module_jumpers(d, WIRE_ORANGE)
+    _pixel_module_jumpers(d, WIRE_RED, "3v3")
     draw_jumper(
         d,
         named_hole("jumper.button-signal.start"),
@@ -2170,6 +2251,7 @@ def diagram_project_2_wiring() -> Drawing:
         # Ground is only available in the top half, so this arcs over the module
         # and comes down onto the button's free hole from above.
         (row_x(12), -85),
+        supply="gnd",
     )
     draw_pixel_module(d)
 
@@ -2179,7 +2261,7 @@ def diagram_project_2_wiring() -> Drawing:
     data = named_hole("jumper.pixels-data.start")
     callout(d, button_ground, f"GND \u00b7 {button_ground}", (26, -30), colour=WIRE_BLACK, anchor="start")
     callout(d, ground, f"GND \u00b7 {ground}", (150, -30), colour=WIRE_BLACK, anchor="start")
-    callout(d, power, f"3.3 V \u00b7 {power}", (290, -30), colour="#c25c00", anchor="start")
+    callout(d, power, f"3.3 V \u00b7 {power}", (290, -30), colour=WIRE_RED, anchor="start")
     callout(d, data, f"GPIO 20 \u00b7 {data}", (455, -30), colour=WIRE_GREEN, anchor="start")
 
     signal_start = named_hole("jumper.button-signal.start")
@@ -2204,21 +2286,22 @@ def diagram_project_3_wiring() -> Drawing:
     # the module's corner on its way, and CLK spans the widest gap so it rides
     # highest over the wires it has to cross.
     jumpers = (
-        ("encoder-clk", WIRE_YELLOW, (row_x(10), -98)),
-        ("encoder-dt", WIRE_GREEN, (row_x(10), -22)),
-        ("encoder-sw", WIRE_PURPLE, (row_x(10), 2)),
-        ("encoder-power", WIRE_ORANGE, (row_x(9), -54)),
-        ("encoder-ground", WIRE_BLACK, (row_x(8), -78)),
-        ("speaker-signal", WIRE_RED, (row_x(16), 30)),
-        ("speaker-ground", WIRE_BLACK, (row_x(15), -100)),
+        ("encoder-clk", WIRE_YELLOW, (row_x(10), -98), None),
+        ("encoder-dt", WIRE_GREEN, (row_x(10), -22), None),
+        ("encoder-sw", WIRE_PURPLE, (row_x(10), 2), None),
+        ("encoder-power", WIRE_RED, (row_x(9), -54), "3v3"),
+        ("encoder-ground", WIRE_BLACK, (row_x(8), -78), "gnd"),
+        ("speaker-signal", WIRE_BLUE, (row_x(16), 30), None),
+        ("speaker-ground", WIRE_BLACK, (row_x(15), -100), "gnd"),
     )
-    for name, colour, control in jumpers:
+    for name, colour, control, supply in jumpers:
         draw_jumper(
             d,
             named_hole(f"jumper.{name}.start"),
             named_hole(f"jumper.{name}.end"),
             colour,
             control,
+            supply=supply,
         )
 
     draw_rotary_encoder(d)
@@ -2229,11 +2312,11 @@ def diagram_project_3_wiring() -> Drawing:
     # they point at keeps their leaders from crossing.
     callouts = (
         ("jumper.encoder-ground.start", "GND", WIRE_BLACK, 26),
-        ("jumper.encoder-power.start", "3.3 V", "#c25c00", 144),
+        ("jumper.encoder-power.start", "3.3 V", WIRE_RED, 144),
         ("jumper.encoder-clk.start", "GPIO 10", WIRE_YELLOW, 262),
         ("jumper.encoder-dt.start", "GPIO 9", WIRE_GREEN, 400),
         ("jumper.encoder-sw.start", "GPIO 8", WIRE_PURPLE, 518),
-        ("jumper.speaker-signal.start", "GPIO 20", WIRE_RED, 636),
+        ("jumper.speaker-signal.start", "GPIO 20", WIRE_BLUE, 636),
     )
     for name, label, colour, label_x in callouts:
         coordinate = named_hole(name)
@@ -2285,6 +2368,7 @@ def diagram_project_4_wiring() -> Drawing:
         named_hole("jumper.mcu-ground.end"),
         WIRE_BLACK,
         (row_x(2), 75),
+        supply="gnd",
     )
 
     # Pad signal jumpers
@@ -2317,20 +2401,23 @@ def diagram_project_4_wiring() -> Drawing:
         named_hole("jumper.pad0-ground.end"),
         WIRE_BLACK,
         (row_x(12), 160),
+        supply="gnd",
     )
     draw_jumper(
         d,
         named_hole("jumper.pad1-ground.start"),
         named_hole("jumper.pad1-ground.end"),
-        WIRE_WHITE,
+        WIRE_BROWN,
         (row_x(16), 160),
+        supply="gnd",
     )
     draw_jumper(
         d,
         named_hole("jumper.pad2-ground.start"),
         named_hole("jumper.pad2-ground.end"),
-        WIRE_PURPLE,
+        WIRE_BROWN,
         (row_x(20), 160),
+        supply="gnd",
     )
 
     # WS2812B Power and Data
@@ -2338,8 +2425,9 @@ def diagram_project_4_wiring() -> Drawing:
         d,
         named_hole("jumper.pixels-power.start"),
         named_hole("jumper.pixels-power.end"),
-        WIRE_ORANGE,
+        WIRE_RED,
         (row_x(12), -20),
+        supply="3v3",
     )
     draw_jumper(
         d,
@@ -2352,8 +2440,9 @@ def diagram_project_4_wiring() -> Drawing:
         d,
         named_hole("jumper.pixels-ground.start"),
         named_hole("jumper.pixels-ground.end"),
-        WIRE_BLUE,
+        WIRE_GREY,
         (row_x(24), 75),
+        supply="gnd",
     )
 
     # Speaker signal jumper
@@ -2361,7 +2450,7 @@ def diagram_project_4_wiring() -> Drawing:
         d,
         named_hole("jumper.speaker-signal.start"),
         named_hole("jumper.speaker-signal.end"),
-        WIRE_RED,
+        WIRE_YELLOW,
         (row_x(15), -50),
     )
 
@@ -2370,8 +2459,9 @@ def diagram_project_4_wiring() -> Drawing:
         d,
         named_hole("jumper.speaker-ground.start"),
         named_hole("jumper.speaker-ground.end"),
-        WIRE_WHITE,
+        WIRE_GREY,
         (row_x(28), 160),
+        supply="gnd",
     )
 
     draw_pixel_module(d, pcb_row=18)
@@ -2384,8 +2474,8 @@ def diagram_project_4_wiring() -> Drawing:
     data = named_hole("jumper.pixels-data.start")
 
     callout(d, mcu_gnd, f"GND \u00b7 {mcu_gnd}", (26, -30), colour=WIRE_BLACK, anchor="start")
-    callout(d, power, f"3.3 V \u00b7 {power}", (160, -30), colour="#c25c00", anchor="start")
-    callout(d, speaker_sig, f"GPIO 10 \u00b7 {speaker_sig}", (310, -30), colour=WIRE_RED, anchor="start")
+    callout(d, power, f"3.3 V \u00b7 {power}", (160, -30), colour=WIRE_RED, anchor="start")
+    callout(d, speaker_sig, f"GPIO 10 \u00b7 {speaker_sig}", (310, -30), colour=WIRE_YELLOW, anchor="start")
     callout(d, data, f"GPIO 20 \u00b7 {data}", (470, -30), colour=WIRE_GREEN, anchor="start")
 
     pad2_sig = named_hole("jumper.pad2-signal.start")
@@ -2403,13 +2493,13 @@ def diagram_project_5_wiring() -> Drawing:
     d = Drawing(MARGIN_T_MODULE)
     draw_breadboard(d)
     draw_xiao(d)
-    _pixel_module_jumpers(d, WIRE_RED)
+    _pixel_module_jumpers(d, WIRE_ORANGE, "5v")
     draw_pixel_module(d)
 
     power = named_hole("jumper.pixels-power.start")
     ground = named_hole("jumper.pixels-ground.start")
     data = named_hole("jumper.pixels-data.start")
-    callout(d, power, f"5 V \u00b7 {power}", (26, -30), colour=WIRE_RED, anchor="start")
+    callout(d, power, f"5 V \u00b7 {power}", (26, -30), colour=CALLOUT_ORANGE, anchor="start")
     callout(d, ground, f"GND \u00b7 {ground}", (150, -30), colour=WIRE_BLACK, anchor="start")
     callout(d, data, f"GPIO 20 \u00b7 {data}", (265, -30), colour=WIRE_GREEN, anchor="start")
     return d
@@ -2430,13 +2520,15 @@ def diagram_project_6_wiring() -> Drawing:
         named_hole("jumper.mpu-ground.end"),
         WIRE_BLACK,
         (row_x(10), -70),
+        supply="gnd",
     )
     draw_jumper(
         d,
         named_hole("jumper.mpu-power.start"),
         named_hole("jumper.mpu-power.end"),
-        WIRE_ORANGE,
+        WIRE_RED,
         (row_x(11), -45),
+        supply="3v3",
     )
     draw_jumper(
         d,
@@ -2460,13 +2552,15 @@ def diagram_project_6_wiring() -> Drawing:
         named_hole("jumper.oled-ground.end"),
         WIRE_BLACK,
         (row_x(22), COLUMN_Y["D"] - 2),
+        supply="gnd",
     )
     draw_jumper(
         d,
         named_hole("jumper.oled-power.start"),
         named_hole("jumper.oled-power.end"),
-        WIRE_ORANGE,
+        WIRE_RED,
         (row_x(23), COLUMN_Y["C"] + 4),
+        supply="3v3",
     )
     draw_jumper(
         d,
@@ -2487,7 +2581,7 @@ def diagram_project_6_wiring() -> Drawing:
     mpu_gnd = named_hole("jumper.mpu-ground.start")
     mpu_pwr = named_hole("jumper.mpu-power.start")
     callout(d, mpu_gnd, f"GND \u00b7 {mpu_gnd}", (26, -30), colour=WIRE_BLACK, anchor="start")
-    callout(d, mpu_pwr, f"3.3 V \u00b7 {mpu_pwr}", (160, -30), colour="#c25c00", anchor="start")
+    callout(d, mpu_pwr, f"3.3 V \u00b7 {mpu_pwr}", (160, -30), colour=WIRE_RED, anchor="start")
 
     mpu_sda = named_hole("jumper.mpu-sda.start")
     mpu_scl = named_hole("jumper.mpu-scl.start")
@@ -2509,26 +2603,28 @@ def diagram_project_7_wiring() -> Drawing:
     # supply three peripherals need at once, so it is fed to the top rail first
     # and tapped from there, which leaves the row-2 node free of a wire pile-up.
     jumpers = (
-        ("mcu-ground", WIRE_BLACK, (row_x(2), 75)),
-        ("encoder-ground", WIRE_BLUE, (row_x(10), 160)),
-        ("encoder-power", WIRE_ORANGE, (row_x(7), -54)),
-        ("encoder-sw", WIRE_PURPLE, (row_x(9), 2)),
-        ("encoder-dt", WIRE_GREEN, (row_x(9), -22)),
-        ("encoder-clk", WIRE_YELLOW, (row_x(9), -98)),
-        ("oled-ground", WIRE_BLUE, (row_x(19), 160)),
-        ("oled-power", WIRE_ORANGE, (row_x(12), -45)),
-        ("oled-scl", WIRE_YELLOW, (row_x(14), COLUMN_Y["C"] + 15)),
-        ("oled-sda", WIRE_GREEN, (row_x(13), COLUMN_Y["B"] + 15)),
-        ("speaker-signal", WIRE_RED, (row_x(20), 20)),
-        ("speaker-ground", WIRE_BLACK, (row_x(28), 160)),
+        ("mcu-ground", WIRE_BLACK, (row_x(2), 75), "gnd"),
+        ("encoder-ground", WIRE_BROWN, (row_x(10), 160), "gnd"),
+        ("encoder-power", WIRE_RED, (row_x(7), -54), "3v3"),
+        ("encoder-sw", WIRE_PURPLE, (row_x(9), 2), None),
+        ("encoder-dt", WIRE_GREEN, (row_x(9), -22), None),
+        ("encoder-clk", WIRE_YELLOW, (row_x(9), -98), None),
+        ("oled-ground", WIRE_BROWN, (row_x(19), 160), "gnd"),
+        ("oled-power", WIRE_RED, (row_x(12), -45), "3v3"),
+        ("oled-scl", WIRE_YELLOW, (row_x(14), COLUMN_Y["C"] + 15), None),
+        ("oled-sda", WIRE_GREEN, (row_x(13), COLUMN_Y["B"] + 15), None),
+        # Both reds are the 3.3 V wires above, so the speaker signal takes purple.
+        ("speaker-signal", WIRE_PURPLE, (row_x(20), 20), None),
+        ("speaker-ground", WIRE_BLACK, (row_x(28), 160), "gnd"),
     )
-    for name, colour, control in jumpers:
+    for name, colour, control, supply in jumpers:
         draw_jumper(
             d,
             named_hole(f"jumper.{name}.start"),
             named_hole(f"jumper.{name}.end"),
             colour,
             control,
+            supply=supply,
         )
 
     draw_rotary_encoder(d)
@@ -2539,11 +2635,11 @@ def diagram_project_7_wiring() -> Drawing:
     # go above it, ordered by the hole they point at so the leaders do not cross.
     callouts = (
         ("jumper.mcu-ground.start", "GND", WIRE_BLACK, 26),
-        ("jumper.encoder-power.start", "3.3 V", "#c25c00", 150),
+        ("jumper.encoder-power.start", "3.3 V", WIRE_RED, 150),
         ("jumper.encoder-clk.start", "GPIO 10", WIRE_YELLOW, 274),
         ("jumper.encoder-dt.start", "GPIO 9", WIRE_GREEN, 412),
         ("jumper.encoder-sw.start", "GPIO 8", WIRE_PURPLE, 530),
-        ("jumper.speaker-signal.start", "GPIO 20", WIRE_RED, 648),
+        ("jumper.speaker-signal.start", "GPIO 20", WIRE_PURPLE, 648),
     )
     for name, label, colour, label_x in callouts:
         coordinate = named_hole(name)
