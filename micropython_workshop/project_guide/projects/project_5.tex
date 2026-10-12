@@ -16,12 +16,30 @@ You will build:
 
 By the end, you will have a complete wireless ``mood lamp'' that works without internet.
 
+\begin{figure}[H]
+\centering
+    \maybeincludegraphics[width=.6\linewidth]{project_5/success.jpg}
+    \caption{The finished mood lamp, controlled from a phone}
+\end{figure}
+
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!40!black]
+    \textbf{Learning goals:}
+    \begin{itemize}
+        \item Host a Wi-Fi network from the ESP32-C3 in \emph{access point} mode
+        \item Act as a web \emph{server}: accept connections on a socket and answer HTTP requests
+        \item Send and receive JSON between a web page and the microcontroller
+        \item Step LED animations with millisecond timing in the same loop that waits for
+              requests, so the lights keep moving while the board answers the web page
+    \end{itemize}
+\end{tcolorbox}
+
 \pagebreak
 
 \section{Components}
 
 \begin{components}
     \item Seeed XIAO ESP32-C3 microcontroller
+    \item Wi-Fi antenna (included with the microcontroller)
     \item 3-pixel WS2812B LED strip
     \item Breadboard
     \item Jumper wires
@@ -35,16 +53,25 @@ Before starting, remove components from earlier projects that are no longer need
 Leave the microcontroller seated in the standard position shown in Project 1. Refer back to
 that chapter's seating instructions if you need help.
 
+\subsubsection{Connect the antenna}
+The microcontroller needs its antenna to host a Wi-Fi network; without it, phones and laptops will
+struggle to find or stay connected to the network. Find the small round gold socket at the end of the
+microcontroller farthest from the USB port, between its two buttons. Line the round plug on the
+antenna cable up over the socket and press straight down with a fingertip until it clicks into place.
+Do not pull on the cable or try to twist the plug on. To remove it later, lift the plug straight up
+from the socket. Lay the flat antenna on the table behind the breadboard, on the same side as the
+LED strip.
+
 \subsubsection{Place the LED strip}
 The LED strip has a right-angle header so it stands upright once seated.
 Push those three pins into the top half of the board: \textbf{5V} into
-\bbhole{pixels.header.power}{J12}, \textbf{DI} into \bbhole{pixels.header.data}{J13}, and
-\textbf{GND} into \bbhole{pixels.header.ground}{J14}.
+\bbhole{pixels.header.power}{F12}, \textbf{DI} into \bbhole{pixels.header.data}{F13}, and
+\textbf{GND} into \bbhole{pixels.header.ground}{F14}.
 
 \begin{figure}[H]
     \centering
     \maybeincludegraphics[width=.95\linewidth]{project_5/components_placed.png}
-    \caption{The LED strip is placed, before adding jumper wires.}
+    \caption{The antenna is connected and the LED strip is placed, before adding jumper wires.}
 \end{figure}
 
 \subsubsection{Wire the LED strip}
@@ -53,9 +80,9 @@ Push those three pins into the top half of the board: \textbf{5V} into
     \hline
     \textbf{WS2812B pin} & \textbf{XIAO pin} & \textbf{Jumper holes} \\
     \hline
-    \connectionrow{pixels-power}{5V}{5V}{I1}{I12}
-    \connectionrow{pixels-data}{DI}{GPIO 20}{I7}{I13}
-    \connectionrow{pixels-ground}{GND}{GND}{I2}{I14}
+    \connectionrow{pixels-power}{5V}{5V}{I1}{J12}
+    \connectionrow{pixels-data}{DI}{GPIO 20}{I7}{J13}
+    \connectionrow{pixels-ground}{GND}{GND}{I2}{J14}
     \hline
 \end{tabular}
 \end{center}

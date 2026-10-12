@@ -50,6 +50,7 @@ You will build:
 \section{Components}
 \begin{components}
     \item Seeed XIAO ESP32-C3 microcontroller
+    \item Wi-Fi antenna (included with the microcontroller)
     \item 0.96-inch 128$\times$64 SSD1306 I\textsuperscript{2}C OLED display
     \item KY-040 rotary encoder module
     \item Treedix 1W 8\si{\ohm} mini speaker
@@ -69,6 +70,14 @@ seats it in a different place to make room for the encoder.
 
 Leave the microcontroller seated in the standard position shown in Project 1. Refer back to
 that chapter's seating instructions if you need help.
+
+\subsubsection{Connect the antenna}
+The board needs its antenna to join your Wi-Fi network. If it is still attached from Project 5,
+leave it in place. Otherwise, find the small round gold socket at the end of the microcontroller
+farthest from the USB port, between its two buttons. Line the round plug on the antenna cable up over
+the socket and press straight down with a fingertip until it clicks into place. Do not pull on the
+cable or try to twist the plug on. Lay the flat antenna on the table beside the breadboard, past the
+far end of the board, so it stays clear of the encoder and speaker.
 
 \subsubsection{Place the components}
 Seat the encoder's five-pin header along the front edge of the board, knob facing you, so the pins
@@ -96,7 +105,7 @@ positive red lead into \bbhole{speaker.lead.signal}{C26} and the negative black 
 \begin{figure}[H]
     \centering
     \maybeincludegraphics[width=.95\linewidth]{project_7/components_placed.png}
-    \caption{The encoder, OLED, and speaker are placed, before adding jumper wires.}
+    \caption{The antenna is connected and the encoder, OLED, and speaker are placed, before adding jumper wires.}
 \end{figure}
 
 \subsubsection{Ground rail distribution}
@@ -517,7 +526,8 @@ for name in SEGMENTS.get(character, ""):
               If the serial output shows an empty I\textsuperscript{2}C scan, check SCL on GPIO 7
               (\bbref{jumper.oled-scl.start} to \bbref{jumper.oled-scl.end}) and SDA on GPIO 6
               (\bbref{jumper.oled-sda.start} to \bbref{jumper.oled-sda.end}).
-        \item \textbf{It says NO WI-FI:} Check \texttt{WIFI\_SSID} and \texttt{WIFI\_PASSWORD} for typos. The
+        \item \textbf{It says NO WI-FI:} Check that the antenna plug is pressed fully onto its socket, then
+              check \texttt{WIFI\_SSID} and \texttt{WIFI\_PASSWORD} for typos. The
               ESP32-C3 only joins 2.4\,GHz networks, so a 5\,GHz-only network will never appear. Networks
               that make you accept terms in a browser first cannot be used at all.
         \item \textbf{Clock is right but weather says NO DATA:} The board reached the network but not the

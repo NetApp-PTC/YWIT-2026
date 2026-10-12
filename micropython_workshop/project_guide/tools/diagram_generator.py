@@ -490,6 +490,12 @@ def xiao_rect() -> tuple[float, float, float, float]:
     return x1 - 27, y_h - 11, x7 + 27, y_d + 11
 
 
+def xiao_antenna_socket() -> tuple[float, float]:
+    """Centre of the U.FL antenna socket, midway across the end away from USB."""
+    _, top, right, bottom = xiao_rect()
+    return right - 15, (top + bottom) / 2
+
+
 def esc(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
@@ -687,11 +693,24 @@ def draw_xiao(d: Drawing) -> None:
     )
     d.text(sh_x + sh_w / 2, sh_y + sh_h / 2 + 3.5, "ESP32-C3", size=9.5, fill="#4c5358", weight="bold")
 
-    # Ceramic antenna at the end away from USB.
+    # The end away from USB carries the U.FL antenna socket between the BOOT and
+    # RESET buttons, as on the pinout photo.
+    sock_x, sock_y = xiao_antenna_socket()
+    for button_y in (mid_y - 34, mid_y + 34):
+        d.add(
+            f'<rect x="{sock_x - 9:.2f}" y="{button_y - 9:.2f}" width="18" height="18" '
+            f'rx="2" fill="#d9dcdf" stroke="#8d939a" stroke-width="1"/>'
+        )
+        d.add(f'<circle cx="{sock_x:.2f}" cy="{button_y:.2f}" r="5.5" fill="#2a2d31"/>')
     d.add(
-        f'<rect x="{right - 22:.2f}" y="{mid_y - 21:.2f}" width="13" height="42" rx="2" '
-        f'fill="#efe7d4" stroke="#c7bea7" stroke-width="1"/>'
+        f'<rect x="{sock_x - 7:.2f}" y="{sock_y - 7:.2f}" width="14" height="14" rx="1.5" '
+        f'fill="#c9ccd0" stroke="#8d939a" stroke-width="1"/>'
     )
+    d.add(
+        f'<circle cx="{sock_x:.2f}" cy="{sock_y:.2f}" r="4.5" fill="{PAD_FILL}" '
+        f'stroke="#8d939a" stroke-width="1"/>'
+    )
+    d.add(f'<circle cx="{sock_x:.2f}" cy="{sock_y:.2f}" r="1.4" fill="#6d757c"/>')
 
     # Pin pads with labels drawn inward so they stay on the PCB. Interpolating
     # between the named end pins avoids another copy of the pin coordinates.
@@ -910,6 +929,84 @@ def draw_pixel_module(d: Drawing, pcb_row: int = 16) -> None:
             f'<circle cx="{hx:.2f}" cy="{hy:.2f}" r="8.5" fill="none" stroke="{ACCENT}" '
             f'stroke-width="2.4"/>'
         )
+
+
+def draw_wifi_antenna(
+    d: Drawing,
+    run_x: float,
+    antenna_y: float,
+    caption: str = "Wi-Fi antenna",
+    *,
+    feed_at_right: bool = False,
+) -> None:
+    """The XIAO's flexible Wi-Fi antenna, plugged into the U.FL socket.
+
+    The cable leaves the plug along the centre channel, where there are no
+    holes, then turns at ``run_x``, which should fall between two hole columns
+    so the cable never looks like it is seated in the board. It runs up to an
+    antenna behind the board when ``antenna_y`` is negative, and down to one in
+    front of it otherwise. The antenna is a plain black film about twice as
+    long as it is wide, with the cable soldered on near one end.
+    """
+    sock_x, sock_y = xiao_antenna_socket()
+    ant_w, ant_h = 190.0, 86.0
+    behind = antenna_y < 0
+    feed_inset = 66.0
+    ant_x = run_x - (ant_w - feed_inset if feed_at_right else feed_inset)
+    feed_y = antenna_y + (ant_h - 34 if behind else 34)
+    turn_y = sock_y - 40 if behind else sock_y + 40
+
+    cable = (
+        f"M {sock_x:.2f} {sock_y:.2f} "
+        f"Q {run_x:.2f} {sock_y:.2f} {run_x:.2f} {turn_y:.2f} "
+        f"L {run_x:.2f} {feed_y:.2f}"
+    )
+    d.add(f'<path d="{cable}" fill="none" stroke="#000" stroke-width="4.5" opacity="0.13" transform="translate(2,3)"/>')
+
+    d.add(
+        f'<rect x="{ant_x + 3:.2f}" y="{antenna_y + 4:.2f}" width="{ant_w}" height="{ant_h}" '
+        f'rx="3" fill="#000" opacity="0.15"/>'
+    )
+    d.add(
+        f'<rect x="{ant_x:.2f}" y="{antenna_y:.2f}" width="{ant_w}" height="{ant_h}" rx="3" '
+        f'fill="#1d1d1f" stroke="#0a0a0b" stroke-width="1.5"/>'
+    )
+
+    d.add(f'<path d="{cable}" fill="none" stroke="#0f0f10" stroke-width="4.2" stroke-linecap="round"/>')
+    d.add(f'<path d="{cable}" fill="none" stroke="#3a3d41" stroke-width="2" stroke-linecap="round"/>')
+
+    # Silver solder joints where the cable's core and shield meet the film, the
+    # second one set in towards the middle of the antenna.
+    d.add(
+        f'<rect x="{run_x - 5:.2f}" y="{feed_y - 4:.2f}" width="10" height="9" rx="1.5" '
+        f'fill="#c9ccd0" stroke="#8d939a" stroke-width="1"/>'
+    )
+    joint_x = run_x - 12.5 if feed_at_right else run_x + 12.5
+    d.add(
+        f'<rect x="{joint_x - 4.5:.2f}" y="{feed_y - 9:.2f}" width="9" height="9" rx="1.5" '
+        f'fill="#c9ccd0" stroke="#8d939a" stroke-width="1" '
+        f'transform="rotate(45 {joint_x:.2f} {feed_y - 4.5:.2f})"/>'
+    )
+
+    # The gold plug sits on top of the socket, its strain relief pointing along the run.
+    d.add(
+        f'<rect x="{sock_x:.2f}" y="{sock_y - 3:.2f}" width="13" height="6" rx="2" '
+        f'fill="#0f0f10"/>'
+    )
+    d.add(
+        f'<circle cx="{sock_x:.2f}" cy="{sock_y:.2f}" r="8" fill="#d4a94e" '
+        f'stroke="#8a6a2a" stroke-width="1.5"/>'
+    )
+    d.add(f'<circle cx="{sock_x:.2f}" cy="{sock_y:.2f}" r="3.5" fill="#b48a35"/>')
+
+    d.text(
+        ant_x + ant_w / 2,
+        antenna_y - 14 if behind else antenna_y + ant_h + 24,
+        caption,
+        size=13,
+        fill=LABEL_GREY,
+        weight="bold",
+    )
 
 
 def draw_rotary_encoder(d: Drawing) -> None:
@@ -2196,18 +2293,28 @@ def diagram_wired_up() -> Drawing:
     return d
 
 
-def _pixel_module_jumpers(d: Drawing, power_colour: str, power_supply: str) -> None:
+def _pixel_module_jumpers(
+    d: Drawing,
+    power_colour: str,
+    power_supply: str,
+    *,
+    power_control: tuple[float, float] = (row_x(7), -20),
+    data_control: tuple[float, float] = (row_x(10), 30),
+    ground_control: tuple[float, float] = (row_x(8), -60),
+) -> None:
     """The three wires from the module's holes back to the seated module's pins.
 
     ``power_supply`` is ``"3v3"`` (red) or ``"5v"`` (orange), matching the pin
-    the strip is actually powered from.
+    the strip is actually powered from. The control points default to a short
+    hop onto columns 12--14; a project that seats the strip further along
+    passes its own so the arcs stay above the board.
     """
     draw_jumper(
         d,
         named_hole("jumper.pixels-power.start"),
         named_hole("jumper.pixels-power.end"),
         power_colour,
-        (row_x(7), -20),
+        power_control,
         supply=power_supply,
     )
     draw_jumper(
@@ -2215,14 +2322,14 @@ def _pixel_module_jumpers(d: Drawing, power_colour: str, power_supply: str) -> N
         named_hole("jumper.pixels-data.start"),
         named_hole("jumper.pixels-data.end"),
         WIRE_GREEN,
-        (row_x(10), 30),
+        data_control,
     )
     draw_jumper(
         d,
         named_hole("jumper.pixels-ground.start"),
         named_hole("jumper.pixels-ground.end"),
         WIRE_BLACK,
-        (row_x(8), -60),
+        ground_control,
         supply="gnd",
     )
 
@@ -2233,7 +2340,16 @@ def diagram_project_2_wiring() -> Drawing:
     draw_xiao(d)
     draw_tactile_button(d, named_hole("button.side-a"), named_hole("button.side-b"))
 
-    _pixel_module_jumpers(d, WIRE_RED, "3v3")
+    _pixel_module_jumpers(
+        d,
+        WIRE_RED,
+        "3v3",
+        # The strip sits at columns 20--22, well clear of the button, so these
+        # arcs stay high and drop onto row J instead of sweeping the holes.
+        power_control=(row_x(14), -40),
+        data_control=(row_x(16), -15),
+        ground_control=(row_x(13), -85),
+    )
     draw_jumper(
         d,
         named_hole("jumper.button-signal.start"),
@@ -2489,19 +2605,33 @@ def diagram_project_4_wiring() -> Drawing:
     return d
 
 
+def _project_5_antenna(d: Drawing) -> None:
+    """The antenna sits behind the board beside the pixel module, level with it,
+    so the diagram needs no margin in front."""
+    draw_wifi_antenna(
+        d,
+        run_x=row_x(9) + PITCH / 2,
+        antenna_y=-180,
+        caption="Wi-Fi antenna \u00b7 plugs into the XIAO",
+        feed_at_right=True,
+    )
+
+
 def diagram_project_5_wiring() -> Drawing:
     d = Drawing(MARGIN_T_MODULE)
     draw_breadboard(d)
     draw_xiao(d)
+    _project_5_antenna(d)
     _pixel_module_jumpers(d, WIRE_ORANGE, "5v")
     draw_pixel_module(d)
 
+    # The labels stay left of the antenna cable, which rises between rows 9 and 10.
     power = named_hole("jumper.pixels-power.start")
     ground = named_hole("jumper.pixels-ground.start")
     data = named_hole("jumper.pixels-data.start")
-    callout(d, power, f"5 V \u00b7 {power}", (26, -30), colour=CALLOUT_ORANGE, anchor="start")
-    callout(d, ground, f"GND \u00b7 {ground}", (150, -30), colour=WIRE_BLACK, anchor="start")
-    callout(d, data, f"GPIO 20 \u00b7 {data}", (265, -30), colour=WIRE_GREEN, anchor="start")
+    callout(d, power, f"5 V \u00b7 {power}", (0, -30), colour=CALLOUT_ORANGE, anchor="start")
+    callout(d, ground, f"GND \u00b7 {ground}", (80, -30), colour=WIRE_BLACK, anchor="start")
+    callout(d, data, f"GPIO 20 \u00b7 {data}", (166, -30), colour=WIRE_GREEN, anchor="start")
     return d
 
 
@@ -2593,10 +2723,18 @@ def diagram_project_6_wiring() -> Drawing:
     return d
 
 
+def _project_7_antenna(d: Drawing) -> None:
+    """Front of the board is taken by the encoder and the I2C callouts, so the
+    cable runs the length of the centre channel and drops past row 30, leaving
+    the antenna beside the speaker."""
+    draw_wifi_antenna(d, run_x=row_x(ROWS) + 28, antenna_y=BOARD_H + 80)
+
+
 def diagram_project_7_wiring() -> Drawing:
     d = Drawing(MARGIN_T, MARGIN_B_ENCODER)
     draw_breadboard(d)
     draw_xiao(d)
+    _project_7_antenna(d)
 
     # The encoder's five signals all live on the 5V side of the module, so they
     # arc over its corner exactly as they do in Project 3. Ground is the one
@@ -2705,6 +2843,7 @@ def diagram_project_5_components_placed() -> Drawing:
     d = Drawing(MARGIN_T_MODULE)
     draw_breadboard(d)
     draw_xiao(d)
+    _project_5_antenna(d)
     draw_pixel_module(d)
     return d
 
@@ -2722,6 +2861,7 @@ def diagram_project_7_components_placed() -> Drawing:
     d = Drawing(MARGIN_T, MARGIN_B_ENCODER)
     draw_breadboard(d)
     draw_xiao(d)
+    _project_7_antenna(d)
     draw_rotary_encoder(d)
     draw_speaker(d)
     draw_oled_module(d, _oled_screen_clock)

@@ -13,6 +13,12 @@ Each successful green press prints your reaction time in milliseconds to the ser
 Each round has 5 total reaction windows. A hit during green scores a point, and a missed green
 window counts as a miss.
 
+\begin{figure}[H]
+\centering
+    \maybeincludegraphics[width=.6\linewidth]{project_2/success.jpg}
+    \caption{The finished reflex game, waiting for green}
+\end{figure}
+
 \begin{tcolorbox}[colback=blue!5!white,colframe=blue!40!black]
     \textbf{Learning goals:}
     \begin{itemize}
@@ -46,8 +52,8 @@ that chapter's seating instructions if you need help.
 
 \subsubsection{Place the components}
 The LED strip has a right-angle header so it stands upright once seated. Push its three pins into
-the top half of the board: \textbf{5V} into \bbhole{pixels.header.power}{J12}, \textbf{DI} into
-\bbhole{pixels.header.data}{J13}, and \textbf{GND} into \bbhole{pixels.header.ground}{J14}.
+the top half of the board: \textbf{5V} into \bbhole{pixels.header.power}{G20}, \textbf{DI} into
+\bbhole{pixels.header.data}{G21}, and \textbf{GND} into \bbhole{pixels.header.ground}{G22}.
 Press the button into the bottom edge of the board so its legs reach from column \textbf{A} up to
 column \textbf{D}. One pair of legs goes into \bbhole{button.side-a}{A12} and \textbf{D12}; the
 other pair goes into \bbhole{button.side-b}{A14} and \textbf{D14}. The two legs of each pair are
@@ -65,9 +71,9 @@ already joined inside the button.
     \hline
     \textbf{WS2812B pin} & \textbf{XIAO pin} & \textbf{Jumper holes} \\
     \hline
-    \connectionrow{pixels-power}{5V}{3V3}{I3}{I12}
-    \connectionrow{pixels-data}{DI}{GPIO 20}{I7}{I13}
-    \connectionrow{pixels-ground}{GND}{GND}{I2}{I14}
+    \connectionrow{pixels-power}{5V}{3V3}{I3}{J20}
+    \connectionrow{pixels-data}{DI}{GPIO 20}{I7}{J21}
+    \connectionrow{pixels-ground}{GND}{GND}{I2}{J22}
     \hline
 \end{tabular}
 \end{center}

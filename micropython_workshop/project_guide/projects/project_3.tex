@@ -18,6 +18,22 @@ Over the course of this project, you will:
 At the end of this project, your microcontroller will run a fully playable combination-lock game
 entirely driven by sound and a single knob—no screen required!
 
+\begin{figure}[H]
+\centering
+    \maybeincludegraphics[width=.6\linewidth]{project_3/success.jpg}
+    \caption{The assembled Safe Cracker, ready for a code to be cracked}
+\end{figure}
+
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!40!black]
+    \textbf{Learning goals:}
+    \begin{itemize}
+        \item Read a rotary encoder's turns and button presses with interrupt-driven library code
+        \item Play tones of different pitches on a speaker with PWM
+        \item Use circular distance to turn ``how close'' into hot-and-cold audio feedback
+        \item Organize a game with state variables, callbacks, and a main loop
+    \end{itemize}
+\end{tcolorbox}
+
 \begin{tcolorbox}[colback=blue!5!white,colframe=blue!40!black]
     \textbf{How the game works:}
     A random 3-digit secret code (each digit 0--9) is generated when the program starts and printed
