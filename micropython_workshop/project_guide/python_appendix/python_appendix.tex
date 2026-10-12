@@ -49,7 +49,7 @@ show_message(user_name, repeat=3)
     defines a reusable function. The parameter \texttt{text} is required, while \texttt{repeat=1} is an
     \textbf{optional parameter} with a default value of 1.
     
-    \item \textbf{Docstrings and comments:} Lines 2 is a docstring (\texttt{"""..."""}) describing what the
+    \item \textbf{Docstrings and comments:} Line 2 is a docstring (\texttt{"""..."""}) describing what the
     function does. Lines starting with \texttt{\#} (like line 9) are comments ignored by Python, written
     to help humans understand the code.
     
@@ -77,6 +77,41 @@ Iteration 0 : Emily
 Iteration 1 : Emily
 Iteration 2 : Emily
 \end{verbatim}
+
+\subsection{Collections: lists, tuples, and dictionaries}
+Programs often need to keep several values together. Python has three common ways to do that:
+
+\begin{lstlisting}[language=Python,caption={Lists, tuples, and dictionaries}]
+notes = [262, 330, 392]          # list: square brackets, can be changed
+notes.append(523)                # notes is now [262, 330, 392, 523]
+print(notes[0])                  # 262 (counting starts at 0)
+
+red = (255, 0, 0)                # tuple: round brackets, cannot be changed
+
+weather = {"temperature": 70, "high": 75}   # dictionary: key -> value
+print(weather["high"])           # 75
+weather["low"] = 58              # add a new key
+\end{lstlisting}
+
+\begin{itemize}
+    \item \textbf{Lists} hold values in order, and you can add, remove, or change items. You reach an item by
+    its position, called its \textbf{index}, starting at 0. The LED strip works like a list:
+    \texttt{pixels[0]} is the first pixel.
+    \item \textbf{Tuples} are like lists that cannot be changed after they are made. They are a good fit for
+    fixed groups of values, such as an RGB color \texttt{(255, 0, 0)} or a note and its length.
+    \item \textbf{Dictionaries} store values under names, called \textbf{keys}, instead of positions. You look
+    a value up by its key, as in \texttt{weather["high"]}. Projects 5 and 7 use dictionaries to hold
+    settings and the data that comes back from web services.
+\end{itemize}
+
+\subsection{Building text with f-strings}
+Many projects print messages that mix words and values. Putting the letter \texttt{f} in front of a
+string lets you drop values straight into it inside curly braces:
+
+\begin{lstlisting}[language=Python,caption=An f-string]
+score = 4
+print(f"Score: {score}/5")       # prints Score: 4/5
+\end{lstlisting}
 
 
 \section{Part 2: MicroPython on Hardware}
@@ -128,11 +163,11 @@ except KeyboardInterrupt:
     \item \textbf{The continuous \texttt{while True:} loop:} Microcontrollers do not have operating systems with
     windows and mice. The program enters a loop that repeats indefinitely, reading inputs and controlling outputs.
     
-    \item \textbf{Integer division (\texttt{//}):} MicroPython uses \texttt{//} for integer division, which discards
-    the remainder. This is useful for calculating whole-number PWM duty values or pixel positions.
+    \item \textbf{Integer division (\texttt{//}):} Python's \texttt{//} operator divides and discards the remainder,
+    so \texttt{7 // 2} is \texttt{3}. This is useful for calculating whole-number PWM duty values or pixel positions.
     
-    \item \textbf{Pacing with \texttt{time.sleep()}:} A brief pause (such as 50 milliseconds) prevents the loop from
-    consuming 100\% of the CPU and keeps the console output readable.
+    \item \textbf{Pacing with \texttt{time.sleep()}:} A brief pause (such as 50 milliseconds) sets how often the loop
+    runs. It gives the sensor time between readings and keeps the serial console from scrolling too fast to read.
     
     \item \textbf{Clean exits with \texttt{try / except KeyboardInterrupt}:} When you press the red Stop button in
     the Viper IDE, it sends a \texttt{KeyboardInterrupt} signal. Wrapping the main loop in \texttt{try / except}

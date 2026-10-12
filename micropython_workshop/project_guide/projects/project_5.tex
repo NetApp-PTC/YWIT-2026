@@ -2,9 +2,8 @@
 
 \section{Overview}
 In this project, your ESP32-C3 becomes both a Wi-Fi access point and a light controller.
-After uploading a Python file plus one HTML dashboard file, you will connect your phone or
-laptop to the microcontroller's network, open a local web page, and control a chain of
-three WS2812B LEDs.
+You will connect your phone or laptop to the microcontroller's network, open a local web page,
+and control a chain of three WS2812B LEDs.
 
 By the end, you will have a complete wireless ``mood lamp'' that works without internet.
 
@@ -79,6 +78,15 @@ Push those three pins into the top half of the board: \textbf{5V} into
 \end{tabular}
 \end{center}
 
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!40!black]
+    \textbf{Why 5V this time?} In Projects 2 and 4 the code kept the LEDs dim, so 3.3V was plenty.
+    The mood lamp's dashboard lets you choose any color at full brightness. Blue and green LEDs need
+    nearly 3V just to light, so on 5V they reach full brightness and white looks white. Powering the
+    strip from 5V also keeps the LED current off the 3.3V supply the Wi-Fi radio depends on. This is
+    safe: the strip only receives signals from GPIO 20 and never sends voltage back to the
+    microcontroller.
+\end{tcolorbox}
+
 \begin{figure}[H]
     \centering
     \maybeincludegraphics[width=.95\linewidth]{project_5/wiring.pdf}
@@ -86,19 +94,10 @@ Push those three pins into the top half of the board: \textbf{5V} into
 \end{figure}
 
 \subsection{Programming the microcontroller}
-Upload both files from the project code folder to your microcontroller:
-\begin{itemize}
-    \item \texttt{project\_5\_wifi\_mood\_lamp.py}
-    \item \texttt{resources/project\_5\_wifi\_mood\_lamp.html}
-\end{itemize}
-
-Keep the \texttt{resources/} folder name exactly the same on the microcontroller filesystem.
-The Python script loads the dashboard from that path.
-
-Then open \texttt{project\_5\_wifi\_mood\_lamp.py} in the IDE and run it.
+Open \texttt{project\_5\_wifi\_mood\_lamp.py} in the IDE and run it.
 Refer back to the \nameref{ide} chapter for instructions.
 
-When the script starts, watch the serial output. It prints:
+When the script starts, watch the serial console. It prints:
 \begin{itemize}
     \item A unique Wi-Fi network name (SSID), such as \texttt{MoodLamp-1A2B3C}
     \item The Wi-Fi password defined in code
@@ -124,11 +123,113 @@ The dashboard includes:
     your own board quickly.
 \end{tcolorbox}
 
+\begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!50!black]
+    \textbf{If something does not work:}
+    \begin{itemize}
+        \item \textbf{The network does not appear:} Check that the antenna plug is pressed fully onto its
+        socket, and that the serial console printed \texttt{AP ready}. It can take a few seconds for a new
+        network to show up in your Wi-Fi list.
+        \item \textbf{Your phone says ``no internet'' or switches back to another network:} That is expected,
+        because the board's network is not connected to the internet. Choose ``stay connected'' (or similar)
+        when your phone asks, and turn off mobile data if the page still will not load.
+        \item \textbf{The page will not load:} Type the address exactly as printed, starting with
+        \texttt{http://} (not \texttt{https://}).
+        \item \textbf{The page loads but the LEDs stay dark:} Check DI in \bbref{pixels.header.data} to GPIO 20
+        (\bbref{jumper.pixels-data.start} to \bbref{jumper.pixels-data.end}), 5V
+        (\bbref{jumper.pixels-power.start} to \bbref{jumper.pixels-power.end}), and ground
+        (\bbref{jumper.pixels-ground.start} to \bbref{jumper.pixels-ground.end}).
+    \end{itemize}
+\end{tcolorbox}
+
+\subsection{How the program works}
+
+\subsubsection{Becoming a Wi-Fi network}
+Normally your phone joins a Wi-Fi network run by a router. Here the microcontroller \emph{is} the
+router. Using \texttt{network.AP\_IF}, the \textbf{access point} interface, it broadcasts its own
+network that other devices can join:
+
+\begin{lstlisting}[language=Python, caption=Starting the access point]
+ap = network.WLAN(network.AP_IF)
+ap.active(True)
+ap.config(
+    essid=ap_ssid,
+    password=AP_PASSWORD,
+    authmode=network.AUTH_WPA_WPA2_PSK,
+    channel=AP_CHANNEL,
+)
+\end{lstlisting}
+
+The network name ends with the last six characters of the chip's unique ID, so every board gets a
+different name. Every device on a network has an \textbf{IP address}, a number that identifies it
+so others can send it messages. The board gives itself \texttt{192.168.4.1}, and that is the
+address you type into your browser.
+
+\subsubsection{Answering a browser}
+The web works by \textbf{requests} and \textbf{responses}, using a set of rules called
+\textbf{HTTP}. When you type the address, your browser opens a connection to the board (a
+\textbf{socket}) and sends a short text request, which starts like this:
+
+\begin{lstlisting}[caption=The first line of a browser's request]
+GET / HTTP/1.1
+\end{lstlisting}
+
+\texttt{GET} means ``please send me something,'' and \texttt{/} is the path of the thing it wants.
+The program acts as a web \textbf{server}: it reads the request, looks at the method and path, and
+sends back a response. For \texttt{GET /}, the response is the dashboard page, which is stored in a
+file on the board.
+
+\subsubsection{Talking in JSON}
+When you move a slider or tap a button on the dashboard, the page sends a \texttt{POST} request (``here
+is some data for you'') to a path such as \texttt{/set/global}. The data is written in
+\textbf{JSON}, a simple text format for labeled values that almost every programming language can
+read:
+
+\begin{lstlisting}[caption=An example request body from the dashboard]
+{"r": 255, "g": 120, "b": 0, "brightness": 60}
+\end{lstlisting}
+
+\texttt{ujson.loads()} turns that text into a Python dictionary, so the program can read
+\texttt{payload["r"]} just like any other dictionary. The program checks that each value is in range,
+updates the LEDs, and replies with JSON describing the lamp's new settings so the page stays in
+sync. A small function, \texttt{route\_request}, decides what to do based on the method and path:
+
+\begin{lstlisting}[language=Python, caption=Choosing what to do with a request]
+if method == "GET" and path == "/":
+    html_response(conn, control_page_html)
+    return
+
+if method == "POST" and path == "/set/global":
+    payload = parse_json_body(body)
+    apply_set_global(payload)
+    json_response(conn, "200 OK", state_payload())
+    return
+\end{lstlisting}
+
+\subsubsection{Animating while waiting for requests}
+A web server spends most of its time waiting for requests. If the program waited forever for the
+next one, the animations would freeze between taps. Instead, \texttt{server.settimeout(0.05)} makes
+the server listen for only 50\,ms at a time. Each pass of the main loop advances the animation if
+its next step is due, then briefly checks for a request:
+
+\begin{lstlisting}[language=Python, caption=The main loop (simplified)]
+while True:
+    update_animation(time.ticks_ms())
+    try:
+        conn, _ = server.accept()
+        handle_client(conn)
+    except OSError:
+        pass  # nobody asked for anything this time
+    time.sleep_ms(MAIN_LOOP_DELAY_MS)
+\end{lstlisting}
+
+\texttt{update\_animation} uses the same deadline idea as Project 2's timers: it only draws the
+next frame once enough milliseconds have passed since the last one, and the speed slider changes
+how many that is.
+
 \section{Review}
 In this project, you combined embedded networking and LED control in one program. You practiced:
 \begin{itemize}
-    \item Hosting a Wi-Fi access point directly on an ESP32-C3
-    \item Serving a local web interface from a microcontroller
+    \item Hosting a Wi-Fi access point and a web page directly on the ESP32-C3
     \item Parsing user commands from HTTP requests
     \item Driving WS2812B LEDs with both static colors and animated effects
     \item Designing a system that is interactive, wireless, and real-time
@@ -136,9 +237,9 @@ In this project, you combined embedded networking and LED control in one program
 
 \section{Possible Extensions}
 \begin{itemize}
-    \item Add a ``favorites'' list of saved color presets
-    \item Add a timed auto-off feature (for example, sleep after 30 minutes)
-    \item Add a ``party mode'' that randomly cycles between multiple effects
-    \item Add an ambient light sensor and auto-adjust brightness
-    \item Add a physical button that toggles between saved scenes without opening the web page
+    \item Save ``favorite'' color presets, and add a physical button that switches between them
+          without opening the web page
+    \item Add a timed auto-off (for example, after 30 minutes) or a ``party mode'' that randomly
+          cycles between effects
+    \item Add an ambient light sensor that auto-adjusts brightness
 \end{itemize}

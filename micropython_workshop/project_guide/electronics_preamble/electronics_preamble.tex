@@ -1,19 +1,46 @@
 \chapter{Electronics Essentials} \label{electronics_essentials}
 
-This beginner's guide introduces the essential components and circuit-building concepts
-you will use throughout this workshop. We will cover the breadboard, LEDs, current-limiting
-resistors, pushbuttons, jumper wires, and fundamental electrical safety. Later projects will
-introduce additional modules---such as addressable RGB LEDs, rotary encoders, speakers, and OLED
-displays---which connect using these same breadboard rows and power rails.
+This chapter covers the parts and circuit-building ideas you will use throughout the workshop,
+from how electricity behaves to breadboards, resistors, LEDs, buttons, wiring, and safety. Later
+projects add modules such as rotary encoders, speakers, and OLED displays, which connect the same way.
+
+\section{Electricity in a Nutshell}
+
+\subsection{Circuits, voltage, and current}
+Electricity only does useful work when it can travel in a complete loop, called a
+\textbf{circuit}: out of a power source, through your components, and back again. Break the loop
+anywhere and everything in it stops. It helps to picture water in pipes:
+\begin{itemize}
+    \item \textbf{Voltage} (measured in volts, V) is the push, like water pressure. It is measured
+    against \textbf{Ground} (GND), the 0V point that every circuit returns to. Your microcontroller's
+    pins supply either 3.3V or 5V.
+    \item \textbf{Current} (measured in amps, A, or milliamps, mA) is how much electricity is
+    actually flowing, like the amount of water moving through the pipe.
+    \item \textbf{Resistance} (measured in ohms, \si{\ohm}) is anything that limits the flow,
+    like a narrow section of pipe. More resistance means less current for the same voltage.
+\end{itemize}
+
+A \textbf{short circuit} is a path from power straight back to ground with almost nothing in the
+way. With no resistance to limit it, far too much current flows, and parts can overheat.
+
+\subsection{Digital and analog signals}
+A microcontroller pin can work with two kinds of signal:
+\begin{itemize}
+    \item \textbf{Digital} signals have only two values. \textbf{HIGH} means the pin is at 3.3V
+    (often written as 1 or \texttt{True}), and \textbf{LOW} means it is at 0V (0 or \texttt{False}).
+    A button is digital: it is either pressed or not.
+    \item \textbf{Analog} signals can be anywhere in between. A light sensor might produce 1.2V in
+    a dim room and 2.8V in a bright one. Some pins can measure that voltage and turn it into a
+    number your code can use.
+\end{itemize}
 
 \section{The Breadboard: Your Circuit's Foundation}
 
 \subsection{What is a breadboard?}
-A breadboard is a reusable platform for prototyping electronic circuits without soldering.
-It contains a grid of spring-clip holes into which component leads and jumper wires are
-inserted to make electrical connections.
+A breadboard lets you build circuits without soldering: its grid of spring-clip holes grips
+component leads and jumper wires to connect them.
 
-\begin{figure}[H]
+\begin{figure}[t]
     \centering
     \maybeincludegraphics[width=.85\linewidth]{electronics_preamble/breadboard_illustration.pdf}
     \caption{The workshop breadboard with the Seeed XIAO ESP32-C3 microcontroller seated.}
@@ -22,12 +49,13 @@ inserted to make electrical connections.
 
 \subsection{Understanding the layout}
 
-\subsubsection{Numbered columns (Bus Strips)}
+\subsubsection{Numbered columns (Terminal Strips)}
 The main area of the breadboard is divided into lettered rows (labeled A through J) and numbered
-columns (labeled 1 to 30):
+columns (labeled 1 to 30). A hole is named by its row and then its column, so \textbf{A10} is
+row A, column 10:
 \begin{itemize}
     \item On the bottom half, holes \textbf{A}, \textbf{B}, \textbf{C}, \textbf{D}, and \textbf{E} in the
-    \textbf{same numbered column} are connected together internally by a vertical metal clip (a \textit{bus strip}).
+    \textbf{same numbered column} are connected together internally by a vertical metal clip (a \textit{terminal strip}).
     For example, placing two component leads in \textbf{A10} and \textbf{C10} connects them together because both
     share column 10.
     \item On the top half, holes \textbf{F}, \textbf{G}, \textbf{H}, \textbf{I}, and \textbf{J} in the
@@ -56,11 +84,26 @@ will run jumper wires from its \textbf{3V3} and \textbf{GND} pins to these rails
 \end{tcolorbox}
 
 
+\section{Resistors: Controlling Current Flow}
+
+\subsection{What is a resistor?}
+A resistor limits the flow of electric current. Resistors protect sensitive components (like LEDs)
+and help create reference voltages for analog sensors. They have \textbf{no polarity}, so they work
+either way around.
+
+\subsection{Resistance values and identification}
+Resistance is measured in ohms (\si{\ohm}) and kilohms (\SI{1}{\kilo\ohm} = \SI{1000}{\ohm}). The resistance
+value is indicated by colored bands around the body of the resistor.
+
+\input{common/resistor_identification.tex}
+
+
 \section{LEDs: Lighting Up Your Circuits}
 
 \subsection{What is an LED?}
-An LED (Light-Emitting Diode) is a semiconductor device that produces light when electric current flows
-through it in the correct direction.
+An LED (Light-Emitting Diode) produces light when electric current flows through it. A
+\textbf{diode} is like a one-way valve for electricity: current can pass through in one direction
+but not the other.
 
 \subsection{Polarity}
 LEDs are \textbf{polarized}---electricity can only flow through them in one direction:
@@ -71,32 +114,17 @@ LEDs are \textbf{polarized}---electricity can only flow through them in one dire
 
 \begin{figure}[H]
 \centering
-\maybeincludegraphics[width=.9\linewidth]{electronics_preamble/led_polarity.pdf}
+\maybeincludegraphics[width=.7\linewidth]{electronics_preamble/led_polarity.pdf}
 \caption{Use either clue to identify LED polarity: the cathode has the shorter lead and the flat edge.}
 \label{fig:led_polarity}
 \end{figure}
 
 \subsection{Current-limiting resistor}
-LEDs have very little internal resistance. If connected directly between power and ground, too much current
-will flow, destroying the LED and potentially damaging the microcontroller pin.
-
-You must \textbf{always connect a resistor in series} with an LED. ``In series'' means the current must travel
-through one single path: from the pin, through the LED, through the resistor, and into ground (or vice versa).
-In this kit, we use a \textbf{220\si{\ohm}} resistor for the LED.
-
-
-\section{Resistors: Controlling Current Flow}
-
-\subsection{What is a resistor?}
-A resistor is a passive component that resists and limits the flow of electric current. Resistors protect
-sensitive components (like LEDs) and help create reference voltages for analog sensors. Resistors have
-\textbf{no polarity}---they can be installed in either orientation without affecting the circuit.
-
-\subsection{Resistance values and identification}
-Resistance is measured in ohms (\si{\ohm}) and kilohms (\SI{1}{\kilo\ohm} = \SI{1000}{\ohm}). The resistance
-value is indicated by colored bands around the body of the resistor.
-
-\input{common/resistor_identification.tex}
+LEDs have very little internal resistance, so connected straight between power and ground they let
+through enough current to destroy the LED and possibly damage the microcontroller pin. That is why
+you must \textbf{always connect a resistor in series} with an LED: the current travels one single
+path, from the pin, through the LED, through the resistor, and into ground. This kit uses a
+\textbf{220\si{\ohm}} resistor for the LED.
 
 
 \section{Buttons: User Input} \label{button_basics}
@@ -107,7 +135,7 @@ The buttons in your kit have four pins arranged in two connected pairs.
 
 \begin{figure}[H]
 \centering
-    \maybeincludegraphics[width=.8\linewidth]{electronics_preamble/button_illustration.pdf}
+    \maybeincludegraphics[width=.65\linewidth]{electronics_preamble/button_illustration.pdf}
     \caption{Pushbutton pin arrangement: the two pins on each side are internally joined.}
     \label{fig:button_pinout}
 \end{figure}
@@ -115,23 +143,40 @@ The buttons in your kit have four pins arranged in two connected pairs.
 \subsection{Understanding the 4-pin connection}
 As shown in Figure \ref{fig:button_pinout}, the two pins on the top edge are permanently joined internally,
 and the two pins on the bottom edge are permanently joined internally. Pressing the button bridges the gap
-between the top pair and the bottom pair. When placing the button across rows on the breadboard, ensure your
-two circuit connections go to opposite pairs so pressing the button closes the circuit.
+between the top pair and the bottom pair. When placing the button on the breadboard, put the two pairs in
+different columns and make sure your two circuit connections go to opposite pairs, so pressing the button
+closes the circuit.
 
 \subsection{Internal pull-up resistors}
-When a button is not pressed, an input pin would otherwise be left ``floating'' (unconnected), picking up
-electrical noise. The ESP32-C3 microcontroller has built-in \textbf{pull-up resistors} that can be enabled
-in MicroPython code. This pulls the pin HIGH (3.3V) when idle; pressing the button connects the pin to GND,
-pulling it LOW (0V). This means you do not need an external resistor to wire a button!
+When a button is not pressed, the input pin it is wired to is not connected to anything. A pin like that is
+called \textbf{floating}: it picks up electrical noise and can randomly read HIGH or LOW. The ESP32-C3
+microcontroller has built-in \textbf{pull-up resistors} that your MicroPython code can switch on. A pull-up
+gently holds the pin HIGH (3.3V) while the button is idle. Pressing the button connects the pin to GND, which
+pulls it LOW (0V). This means you do not need an external resistor to wire a button!
 
-Although both components are called resistors, an internal pull-up cannot replace the
-220\si{\ohm} current-limiting resistor used with an LED. A pull-up is a weak, relatively
-high-value resistor (typically tens of kilohms) connected inside the microcontroller between
-3.3V and an \textbf{input} pin. Its job is only to keep an otherwise unconnected input at a
-known logic level. It is not in the LED's current path, its exact value is not tightly
-controlled, and it would supply far too little current to light the LED normally. The external
-220\si{\ohm} resistor has a known value and is physically placed \textbf{in series} with the
-LED so that all LED current passes through it.
+Because pressing the button makes the pin go LOW, this kind of button is called \textbf{active-low}: in your
+code, a reading of 0 means ``pressed'' and 1 means ``not pressed.''
+
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!40!black]
+    \textbf{Did you know?} An internal pull-up cannot replace the 220\si{\ohm} resistor used with an LED.
+    A pull-up is a weak resistor (tens of kilohms) whose only job is to hold an input pin at a known level,
+    and it is not in the LED's path at all. The 220\si{\ohm} resistor sits \textbf{in series} with the LED,
+    so all of the LED's current flows through it.
+\end{tcolorbox}
+
+\section{Addressable RGB LEDs (WS2812B)} \label{ws2812b_basics}
+Several projects use a small strip of three \textbf{WS2812B} LEDs, often called \textbf{NeoPixels}.
+Each one actually contains three tiny LEDs (red, green, and blue) plus a small control chip. By
+mixing different amounts of red, green, and blue, each pixel can show almost any color.
+
+They are called \textbf{addressable} because you can set each pixel to its own color using just one
+data pin. The microcontroller sends a stream of color values down the data wire. The first pixel
+keeps the first color for itself and passes the rest along to the next pixel, which does the same.
+In MicroPython, you set \texttt{pixels[0]}, \texttt{pixels[1]}, and \texttt{pixels[2]} to colors,
+then call \texttt{pixels.write()} to send them all at once.
+
+The strip has three pins: \textbf{5V} (power), \textbf{DI} (data in), and \textbf{GND} (ground).
+The pixels have no fixed color. Whatever color you see is the color the code chose to send.
 
 
 \section{Jumper Wires: Making Connections}
@@ -147,10 +192,11 @@ Jumper wires are flexible insulated wires with male pins at both ends that plug 
 \end{figure}
 
 \subsection{Wire colors}
-All jumper wires are electrically identical on the inside. However, following standard color conventions
-makes your circuits much easier to read and troubleshoot:
 Your kit has two jumper wires of each of these ten colors: black, brown, red, orange, yellow,
 green, blue, purple, grey, and white.
+
+All jumper wires are electrically identical on the inside. However, following standard color conventions
+makes your circuits much easier to read and troubleshoot:
 \begin{itemize}
     \item \textbf{Black / Brown:} Ground (GND).
     \item \textbf{Red:} 3.3V power.

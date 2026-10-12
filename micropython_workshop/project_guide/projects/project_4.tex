@@ -14,7 +14,8 @@ Pressing each button triggers a distinct musical note on the speaker and lights 
 \begin{tcolorbox}[colback=blue!5!white,colframe=blue!40!black]
     \textbf{Learning goals:}
     \begin{itemize}
-        \item Wire three pushbuttons and read them with active-low logic and internal pull-up resistors
+        \item Wire three pushbuttons and read them as active-low inputs (pressed reads 0) using internal
+              pull-up resistors
         \item Generate musical notes on a speaker by changing the PWM (Pulse Width Modulation) frequency
         \item Light individual WS2812B addressable LEDs in sync with the notes using the \texttt{neopixel}
               library
@@ -29,7 +30,7 @@ Pressing each button triggers a distinct musical note on the speaker and lights 
     \item Seeed XIAO ESP32-C3 microcontroller
     \item 3-pixel WS2812B LED strip
     \item 3x Tactile pushbuttons ($6\times6$\,mm)
-    \item 1x Treedix 1W 8\si{\ohm} mini speaker (with breadboard-friendly Dupont leads)
+    \item 1x Treedix 1W 8\si{\ohm} mini speaker
     \item Breadboard
     \item Jumper wires
 \end{components}
@@ -37,8 +38,7 @@ Pressing each button triggers a distinct musical note on the speaker and lights 
 \section{Directions}
 
 \subsubsection{Remove previous components}
-Before beginning, remove components and wires from the previous project. You may leave the
-microcontroller seated in the breadboard.
+Before beginning, remove components and wires from the previous project.
 
 \subsection{Creating the circuit}
 
@@ -46,29 +46,31 @@ Leave the microcontroller seated in the standard position shown in Project 1. Re
 that chapter's seating instructions if you need help.
 
 \subsubsection{Place the components}
-Insert the WS2812B strip's three pins into row \textbf{F} (rows 22--24) on the right side of the
+Insert the WS2812B strip's three pins into row \textbf{F} (columns 22--24) on the right side of the
 breadboard: \textbf{5V} into \bbhole{pixels.header.power}{F22}, \textbf{DI} into
 \bbhole{pixels.header.data}{F23}, and \textbf{GND} into \bbhole{pixels.header.ground}{F24}.
-Seat the three pushbuttons in the lower half of the breadboard spanning columns \textbf{A} through
+Seat the three pushbuttons in the lower half of the breadboard spanning rows \textbf{A} through
 \textbf{D}:
 \begin{itemize}
-    \item \textbf{Pad 0 (Loop/Bass):} Place one pair of legs in \bbhole{pad0.side-a}{A10} and \textbf{D10}, and the other pair in \bbhole{pad0.side-b}{A12} and \textbf{D12}.
+    \item \textbf{Pad 0 (Beat loop):} Place one pair of legs in \bbhole{pad0.side-a}{A10} and \textbf{D10}, and the other pair in \bbhole{pad0.side-b}{A12} and \textbf{D12}.
     \item \textbf{Pad 1 (Mid note):} Place one pair of legs in \bbhole{pad1.side-a}{A14} and \textbf{D14}, and the other pair in \bbhole{pad1.side-b}{A16} and \textbf{D16}.
     \item \textbf{Pad 2 (High note):} Place one pair of legs in \bbhole{pad2.side-a}{A18} and \textbf{D18}, and the other pair in \bbhole{pad2.side-b}{A20} and \textbf{D20}.
 \end{itemize}
-Insert the speaker's two Dupont leads into the lower half of the breadboard: the positive red lead
+Insert the speaker's two leads into the lower half of the breadboard: the positive red lead
 into \bbhole{speaker.lead.signal}{C26} and the negative black lead into
 \bbhole{speaker.lead.ground}{C28}.
 
 \begin{figure}[H]
     \centering
-    \maybeincludegraphics[width=.95\linewidth]{project_4/components_placed.pdf}
+    \maybeincludegraphics[width=.85\linewidth]{project_4/components_placed.pdf}
     \caption{The LED strip, three buttons, and speaker are placed, before adding jumper wires.}
 \end{figure}
 
 \subsubsection{Ground rail distribution}
-Because we have multiple components requiring a ground connection, we connect the microcontroller's
-\textbf{GND} pin to the breadboard's top blue ($-$) power rail. This powers the entire rail with ground:
+Five components need a ground connection, but the microcontroller's body covers most of column 2,
+leaving only two free holes next to its \textbf{GND} pin. So connect the \textbf{GND} pin to the
+breadboard's top blue ($-$) power rail instead. This connects the whole rail to ground, so any hole on
+it works as a ground connection:
 
 \begin{center}
 \begin{tabular}{|l|l|l|}
@@ -79,6 +81,15 @@ Because we have multiple components requiring a ground connection, we connect th
     \hline
 \end{tabular}
 \end{center}
+
+The diagram below shows every jumper in the finished circuit. The tables after it list them one
+group at a time.
+
+\begin{figure}[H]
+    \centering
+    \maybeincludegraphics[width=.95\linewidth]{project_4/wiring.pdf}
+    \caption{Complete wiring diagram for Project 4: Pocket DJ.}
+\end{figure}
 
 \subsubsection{Wire the WS2812B LED strip}
 
@@ -94,25 +105,18 @@ Because we have multiple components requiring a ground connection, we connect th
 \end{tabular}
 \end{center}
 
+\needspace{11\baselineskip}
 \subsubsection{Wire the tactile buttons}
-Connect each button's signal leg (column \textbf{E}) to the microcontroller:
+Connect each button's signal leg (row \textbf{E}) to the microcontroller, and its ground leg
+(also row \textbf{E}) to the top ground rail:
 \begin{center}
 \begin{tabular}{|l|l|l|}
     \hline
-    \textbf{Button signal} & \textbf{XIAO pin} & \textbf{Jumper holes} \\
+    \textbf{Button wire} & \textbf{Source / Pin} & \textbf{Jumper holes} \\
     \hline
-    \connectionrow{pad0-signal}{Pad 0 (row 10)}{GPIO 21}{C7}{E10}
-    \connectionrow{pad1-signal}{Pad 1 (row 14)}{GPIO 7}{C6}{E14}
-    \connectionrow{pad2-signal}{Pad 2 (row 18)}{GPIO 6}{C5}{E18}
-    \hline
-\end{tabular}
-\end{center}
-
-Next, wire each button's ground leg (column \textbf{E}) to the top ground rail:
-\begin{center}
-\begin{tabular}{|l|l|l|}
-    \hline
-    \textbf{Button ground} & \textbf{Source} & \textbf{Jumper holes} \\
+    \connectionrow{pad0-signal}{Pad 0 signal (column 10)}{GPIO 21}{C7}{E10}
+    \connectionrow{pad1-signal}{Pad 1 signal (column 14)}{GPIO 7}{C6}{E14}
+    \connectionrow{pad2-signal}{Pad 2 signal (column 18)}{GPIO 6}{C5}{E18}
     \hline
     Pad 0 ground & Top GND rail & \bbhole{jumper.pad0-ground.start}{top-12} $\rightarrow$ \bbhole{jumper.pad0-ground.end}{E12} \\
     Pad 1 ground & Top GND rail & \bbhole{jumper.pad1-ground.start}{top-16} $\rightarrow$ \bbhole{jumper.pad1-ground.end}{E16} \\
@@ -122,8 +126,6 @@ Next, wire each button's ground leg (column \textbf{E}) to the top ground rail:
 \end{center}
 
 \subsubsection{Wire the speaker}
-Connect the speaker signal and ground jumpers:
-
 \begin{center}
 \begin{tabular}{|l|l|l|}
     \hline
@@ -134,12 +136,6 @@ Connect the speaker signal and ground jumpers:
     \hline
 \end{tabular}
 \end{center}
-
-\begin{figure}[H]
-    \centering
-    \maybeincludegraphics[width=.95\linewidth]{project_4/wiring.pdf}
-    \caption{Complete wiring diagram for Project 4: Pocket DJ.}
-\end{figure}
 
 \subsection{Programming the microcontroller}
 Open the file named \texttt{project\_4\_pocket\_dj.py} in the IDE and run it.
@@ -154,25 +150,22 @@ Press any button to play music!
 
 Try pressing each pad:
 \begin{itemize}
+    \item \textbf{Pad 0} plays an automated 4-step beat loop across all three notes and colors. It is the
+    only way to hear the low note (262\,Hz), which flashes the first LED red.
     \item \textbf{Pad 1} plays a middle note (330\,Hz) and flashes the middle LED green.
     \item \textbf{Pad 2} plays a higher note (392\,Hz) and flashes the third LED blue.
-    \item \textbf{Pad 0} plays an automated 4-step rhythm loop across the notes and colors!
 \end{itemize}
 
 \subsection{How the program works}
 
 \subsubsection{Musical tones with PWM}
-In Project 1, PWM was used to control LED brightness by changing duty cycle at a fixed frequency.
-Here, we use PWM on the speaker pin, but instead of changing brightness, we change the \textbf{frequency} (the pitch):
-\begin{lstlisting}[language=Python, caption=Playing a tone on the speaker]
-pwm = PWM(Pin(PIN_SPEAKER), freq=freq, duty=512)
-time.sleep_ms(duration_ms)
-pwm.deinit()
-\end{lstlisting}
-A higher frequency makes the speaker vibrate faster, producing a higher musical pitch. A 50\% duty cycle (\texttt{duty=512}) provides optimal volume. Calling \texttt{pwm.deinit()} silences the speaker when the note is done.
+The speaker works exactly as it did in Project 3's \texttt{play\_tone}: PWM at a 50\% duty cycle,
+with the \textbf{frequency} setting the pitch. A higher frequency makes the speaker vibrate faster,
+producing a higher note. Each pad simply has its own frequency, and the three chosen here (262, 330,
+and 392\,Hz) are the notes C, E, and G, which sound good together.
 
 \subsubsection{RGB LEDs with NeoPixel}
-The WS2812B LEDs are addressable: a single digital data pin (GPIO 20) controls the color and brightness of all three pixels independently.
+As described in \nameref{ws2812b_basics}, a single data pin (GPIO 20) controls the color and brightness of all three pixels independently.
 Colors are specified as \texttt{(Red, Green, Blue)} tuples from 0 to 255:
 \begin{lstlisting}[language=Python, caption=Lighting a pixel]
 pixels[pixel_idx] = color
@@ -193,10 +186,10 @@ When triggered, a \texttt{for} loop steps through each element, playing each not
 
 \subsection{Hardware test checklist}
 \begin{enumerate}
+    \item Press Pad 0: You should hear the 4-step beat loop play across the different tones and LEDs.
     \item Press Pad 1: You should hear a tone and see the green LED light up.
     \item Press Pad 2: You should hear a higher tone and see the blue LED light up.
-    \item Press Pad 0: You should hear the 4-step beat loop play across the different tones and LEDs.
-    \item Check serial output in the IDE to verify that button presses are detected cleanly without double triggers.
+    \item Check the serial console to verify that button presses are detected cleanly without double triggers.
 \end{enumerate}
 
 \begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!50!black]

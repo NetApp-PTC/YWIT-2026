@@ -126,7 +126,7 @@ def setup_components():
         max_val=DIAL_MAX,
         reverse=True,
         pull_up=True,
-        range_mode=RotaryIRQ.RANGE_BOUNDED,
+        range_mode=RotaryIRQ.RANGE_WRAP,
     )
     knob.add_listener(on_dial_change)
     DebouncedButton(PIN_SW, on_enter)

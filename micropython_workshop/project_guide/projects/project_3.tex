@@ -24,7 +24,7 @@ entirely driven by sound and a single knob—no screen required!
               Modulation)
         \item Use circular distance to turn ``how close'' into hot-and-cold audio feedback
         \item Organize a game with a randomized secret code, state variables, callbacks, and a main loop
-        \item Read serial output to debug your program
+        \item Read the serial console to debug your program
     \end{itemize}
 \end{tcolorbox}
 
@@ -35,7 +35,7 @@ entirely driven by sound and a single knob—no screen required!
 \begin{components}
     \item Seeed XIAO ESP32-C3 microcontroller
     \item KY-040 rotary encoder module (5-pin, includes onboard pull-up resistors)
-    \item Treedix 1W 8\si{\ohm} mini speaker (JST 2-pin connector)
+    \item Treedix 1W 8\si{\ohm} mini speaker
     \item Breadboard
     \item Jumper wires
 \end{components}
@@ -44,16 +44,16 @@ entirely driven by sound and a single knob—no screen required!
 
 \subsubsection{Remove previous components}
 Before beginning, remove any components from prior chapters including LEDs, buttons, and wires.
-You may leave the microcontroller attached to the breadboard.
-
 Leave the microcontroller seated in the standard position shown in Project 1. Refer back to
 that chapter's seating instructions if you need help.
 
 \subsection{Understanding the KY-040 Rotary Encoder}
 
-A rotary encoder is a type of position sensor that converts the angular position (rotation) of a
-knob into electrical signals. Unlike a potentiometer, an encoder has no physical stops—you can spin
-it continuously in either direction.
+A rotary encoder is a type of position sensor that converts the rotation of a knob into electrical
+signals. Unlike a volume knob that stops at each end (an electronic part called a
+\textbf{potentiometer}), an encoder has no physical stops---you can spin it continuously in either
+direction. As it turns, you feel small clicks; each click sends a short pattern of pulses that the
+code counts.
 
 The KY-040 module has five pins:
 \begin{itemize}
@@ -64,12 +64,15 @@ The KY-040 module has five pins:
     \item \textbf{GND} — Ground
 \end{itemize}
 
-Hold the module with the knob facing you and the pins pointing down: the silkscreen reads
+Hold the module with the knob facing you and the pins pointing down. The white labels printed on
+the circuit board, called the \textbf{silkscreen}, read
 \textbf{GND}, \textbf{+}, \textbf{SW}, \textbf{DT}, \textbf{CLK} from left to right.
 
 \begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!50!black]
-    \textbf{Important:} Power the KY-040 from \textbf{3.3V}, not 5V. The ESP32-C3 GPIO pins are
-    not 5V-tolerant, so using 5V could damage your microcontroller.
+    \textbf{Important:} Power the KY-040 from \textbf{3.3V}, not 5V. The encoder's signal pins
+    connect directly to the ESP32-C3's GPIO pins, which are built for 3.3V. If the encoder were
+    powered from 5V, it would send 5V signals into those pins, which could damage your
+    microcontroller.
 \end{tcolorbox}
 
 \subsection{Creating the circuit}
@@ -85,8 +88,8 @@ you, so the pins land in silkscreen order: \textbf{GND} in
 \bbhole{encoder.header.sw}{A14}, \textbf{DT} in
 \bbhole{encoder.header.dt}{A15}, and \textbf{CLK} in
 \bbhole{encoder.header.clk}{A16}. Row A leaves the knob clear of other components, making it
-easier to grip and turn. Insert the speaker's adapted Dupont leads into the bottom half of the
-breadboard: the positive lead in \bbhole{speaker.lead.signal}{C20} and the negative lead in
+easier to grip and turn. Insert the speaker's two leads into the bottom half of the
+breadboard: the red (+) lead in \bbhole{speaker.lead.signal}{C20} and the black ($-$) lead in
 \bbhole{speaker.lead.ground}{C22}.
 
 \begin{figure}[H]
@@ -138,10 +141,31 @@ breadboard: the positive lead in \bbhole{speaker.lead.signal}{C20} and the negat
     again. Crack all three digits to trigger the victory fanfare and start a new game!
 \end{tcolorbox}
 
+\subsection{Programming the microcontroller}
+
+Connect the USB cable to the microcontroller and open the IDE. Refer back to the \nameref{ide}
+chapter for instructions if needed.
+
+Click on the file named \texttt{project\_3\_safe\_cracker.py}. Read through the comments and
+code to get a sense of how it works, then click the blue play button to start the game.
+
+When the program starts, watch the serial console. It prints the secret code so you can check
+that the game is working (have a friend run it if you want a real challenge):
+
+\begin{verbatim}
+New safe code: [3, 7, 1]
+Dial 1/3: showing 5 (target 3, distance 2)
+\end{verbatim}
+
+\begin{tcolorbox}[colback=green!5!white,colframe=green!40!black]
+    \textbf{Tip:} If the tones are silent, check that the speaker's signal wire is connected
+    to GPIO 20 and that the ground wire goes to GND. If the dial counts in the wrong direction,
+    change \texttt{reverse=True} to \texttt{reverse=False} in the code.
+\end{tcolorbox}
+
 \subsection{Understanding the Code}
 
-Open the file named \texttt{project\_3\_safe\_cracker.py} in the IDE. Let's walk through
-the key sections.
+Here is a walk through the key sections of the code.
 
 \subsubsection{Configuration Constants}
 
@@ -184,8 +208,8 @@ called a 50\% duty cycle and produces the loudest sound for a square wave.
 \subsubsection{Proximity Hints}
 
 The game measures how close the current dial value is to the target digit using a
-\emph{circular distance}. Because the dial wraps around (0 and 9 are neighbors), we
-take the smaller of the straight-line distance and the wrap-around distance:
+\emph{circular distance}. Because the dial wraps around (0 and 9 are neighbors), the code
+takes the smaller of the straight-line distance and the wrap-around distance:
 
 \begin{lstlisting}[language=Python, caption=Circular distance on a 0-9 dial]
 def dial_distance(current, target):
@@ -209,11 +233,17 @@ This distance is then mapped to a tone:
 
 \subsubsection{Reading the Encoder and Button}
 
+A knob can be turned at any moment, even while the program is busy playing a tone. If the
+program only checked the pins now and then, it could miss clicks. Instead, it uses
+\textbf{hardware interrupts}: the microcontroller watches the pins itself and, the instant one
+changes, pauses whatever it was doing to run a short function. A function you hand to another
+piece of code so it can call it later, when something happens, is called a \textbf{callback}.
+
 The code uses two library modules from the \texttt{lib/} folder:
 
 \begin{itemize}
-    \item \textbf{RotaryIRQ} — reads the encoder using hardware interrupts; configured for
-          bounded range 0--9 with automatic wrap-prevention.
+    \item \textbf{RotaryIRQ} — reads the encoder using hardware interrupts; configured to count
+          0--9 and wrap from 9 back to 0 (and from 0 to 9), like a real combination-lock dial.
     \item \textbf{DebouncedButton} — reads the encoder's push-button and fires a callback
           only once per press, filtering out electrical noise (bouncing).
 \end{itemize}
@@ -226,7 +256,7 @@ knob = RotaryIRQ(
     max_val=DIAL_MAX,
     reverse=True,
     pull_up=True,
-    range_mode=RotaryIRQ.RANGE_BOUNDED,
+    range_mode=RotaryIRQ.RANGE_WRAP,
 )
 knob.add_listener(on_dial_change)
 DebouncedButton(PIN_SW, on_enter)
@@ -234,7 +264,9 @@ DebouncedButton(PIN_SW, on_enter)
 
 \texttt{reverse=True} makes clockwise rotation increase the displayed number (adjust to
 \texttt{False} if your knob spins the wrong way). \texttt{pull\_up=True} enables the
-internal pull-up resistors so the CLK and DT pins read HIGH when idle.
+internal pull-up resistors so the CLK and DT pins read HIGH when idle. \texttt{on\_dial\_change}
+and \texttt{on\_enter} are the callbacks: the library calls them for you whenever the knob turns or
+the button is pressed.
 
 \subsubsection{Game Loop}
 
@@ -249,31 +281,9 @@ whether the current value matches the target:
     \item \textbf{Wrong:} A low buzz plays and the player tries again on the same digit.
 \end{itemize}
 
-\subsection{Programming the microcontroller}
-
-Connect the USB cable to the microcontroller and open the IDE. Refer back to the \nameref{ide}
-chapter for instructions if needed.
-
-Click on the file named \texttt{project\_3\_safe\_cracker.py}. Read through the comments and
-code to understand how it works, then click the blue play button to start the game.
-
-When the program starts, watch the serial console—it will print the secret code so you
-(or your instructor) can verify the game is working:
-
-\begin{verbatim}
-New safe code: [3, 7, 1]
-Dial 1/3: showing 5 (target 3, distance 2)
-\end{verbatim}
-
-\begin{tcolorbox}[colback=green!5!white,colframe=green!40!black]
-    \textbf{Tip:} If the tones are silent, check that the speaker's signal wire is connected
-    to GPIO 20 and that the ground wire goes to GND. If the dial counts in the wrong direction,
-    change \texttt{reverse=True} to \texttt{reverse=False} in the code.
-\end{tcolorbox}
-
 \section{Review}
-In this project, we combined hardware input (rotary encoder) and output (PWM speaker tones) to build
-a complete interactive game. We learned:
+In this project, you combined hardware input (rotary encoder) and output (PWM speaker tones) to build
+a complete interactive game. You learned:
 \begin{itemize}
     \item How a rotary encoder converts physical rotation into digital signals
     \item How PWM can drive a speaker to play different pitches

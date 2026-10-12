@@ -1,16 +1,21 @@
 \chapter{Introduction}
 \section{What this course will teach}
-This workshop will introduce the student to Python coding, electronics, and project
-design. We will be building several projects ranging from simple (less components and
-simpler code) to more complex (more components or more complicated code). These projects
-are based on the ESP32-C3 microcontroller (specifically the development board produced by
-\href{https://www.seeedstudio.com/Seeed-XIAO-ESP32C3-p-5431.html}{Seeed Studio}) which is
-running MicroPython and they depend on some other electronics components such as LEDs,
-buttons, and more.
+This workshop introduces you to Python coding, electronics, and project design. You will
+build several projects, starting simple (fewer components and shorter code) and working up
+to more complex ones (more components and more involved code).
 
-Students are encouraged to make use of the written instructions and diagrams and to
-explore and play with the components for themselves to see how they work and what
-they do. There are many online resources as well for learning.
+Every project is built around a \textbf{microcontroller}: a small, complete computer on a
+single chip. It has a processor, memory, and pins that can sense and control the outside
+world. It is far less powerful than a laptop, but it starts instantly, uses very little
+power, and can be built into almost anything: thermostats, game controllers, cars. The one
+in your kit is an ESP32-C3, mounted on a small development board made by
+\href{https://www.seeedstudio.com/Seeed-XIAO-ESP32C3-p-5431.html}{Seeed Studio}. It runs
+\textbf{MicroPython}, a version of the Python language small enough to fit on a
+microcontroller. Alongside it, you will use LEDs, buttons, a speaker, sensors, and a small
+screen.
+
+Use the written instructions and diagrams, but also feel free to experiment with the
+components to see how they work and what they do.
 
 \begin{tcolorbox}[colback=blue!5!white,colframe=blue!40!black]
     \textbf{New to Python or MicroPython?}
@@ -28,37 +33,28 @@ they do. There are many online resources as well for learning.
 \end{figure}
 
 \section{Working with the microcontroller}
-\subsection{Installing the driver}
-Many modern computers and operating systems already include the USB support this
-microcontroller needs, so you can often skip this step and go straight to connecting
-the board. Install a driver only if your computer does not recognize the microcontroller
-when you plug it in. If that happens, download the driver for your OS from this page and
-install as instructed: \url{https://ftdichip.com/drivers/vcp-drivers/}. Once installed
-successfully, unplug and replug the USB cable into the microcontroller and then press the
-small reset button on the microcontroller board labeled "R" (for reset).
-
 \subsection{Pinout Reference} \label{pinout}
-On any integrated circuit, that is a chip that contains electronic logic, a pinout is
-a diagram and description of what each of the pins of that circuit are used for. This is
-a very useful document for any electronics engineer to have handy and to reference. The
-pinout diagram for the microcontroller that we are using as part of this workshop is
-replicated below:
+A \textbf{pinout} is a map of what each pin on a chip or board does. Electronics engineers
+keep one handy whenever they wire something up. Here is the pinout for the microcontroller
+board used in this workshop:
 \begin{figure}[H]
 \centering
     \maybeincludegraphics[width=.6\linewidth]{common/esp32c3_pinout.png}
     \caption{A simplified pinout of the Seeed Studio ESP32-C3 development board}
 \end{figure}
 
-In this diagram, you'll notice several things:
+The label colors tell you what kind of pin each one is:
 \begin{itemize}
-    \item An image of the microcontroller board in the center
-    \item A label for each pin indicating its function
+    \item \textbf{Green (GPIO):} \textbf{General-Purpose Input/Output} pins. Your code decides what
+    each one does: it can switch a pin on or off to control an LED or speaker, or read a pin to
+    check a button or sensor.
+    \item \textbf{Red (5V and 3V3):} Power pins that supply 5 volts or 3.3 volts to your circuits.
+    \item \textbf{Black (GND):} Ground, the 0-volt return path that every circuit connects back to.
 \end{itemize}
 
-In the code throughout this guide, you will see references to pin numbers like \textbf{Pin(5)}.
-Wherever you see this, it means that the code is expecting a connection to, in this example, the
-4th pin down on the left. If you find that your code is not working as expected, double check the
-pin numbers in the code vs. the placement of your wires.
+In the code throughout this guide, you will see pin numbers like \textbf{Pin(5)}. This means
+\textbf{GPIO5} on the pinout, which is the 4th pin down on the left. If your code is not working
+as expected, double check the pin numbers in the code against where your wires are plugged in.
 
 \subsection{Project Guide Updates}
 

@@ -13,3 +13,25 @@ might take more force than you expect.
     \maybeincludegraphics[width=.95\linewidth]{common/microcontroller_seated_in_breadboard.pdf}
     \caption{So far, so good!}
 \end{figure}
+
+Once it is seated, each microcontroller pin shares a terminal strip with the free holes in its
+column. For example, \textbf{GPIO 20} sits in \textbf{H7}, so a jumper plugged into \textbf{I7}
+or \textbf{J7} connects to GPIO 20. That is why every wiring table in this guide starts its
+jumpers in columns 1--7: rows I and J for the top pins, and rows A--C for the bottom pins. The
+board's body covers the rest of the holes in those columns.
+
+\begin{center}
+\begin{tabular}{|c|l|l|}
+    \hline
+    \textbf{Column} & \textbf{Top pin (row H)} & \textbf{Bottom pin (row D)} \\
+    \hline
+    1 & 5V      & GPIO 2  \\
+    2 & GND     & GPIO 3  \\
+    3 & 3V3     & GPIO 4  \\
+    4 & GPIO 10 & GPIO 5  \\
+    5 & GPIO 9  & GPIO 6  \\
+    6 & GPIO 8  & GPIO 7  \\
+    7 & GPIO 20 & GPIO 21 \\
+    \hline
+\end{tabular}
+\end{center}

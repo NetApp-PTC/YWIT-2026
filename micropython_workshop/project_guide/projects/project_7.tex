@@ -34,7 +34,7 @@ You will build:
         \item Turn a city name into coordinates with a geocoding service, and pull values out of JSON
         \item Set the real-time clock from the headers of a reply, and convert UTC into local time
         \item Save settings to a file on the microcontroller so they survive a power cycle
-        \item Organize the program with your own classes and a main loop that never blocks
+        \item Organize the program with your own classes and a main loop that keeps every job moving
     \end{itemize}
 \end{tcolorbox}
 
@@ -54,8 +54,7 @@ You will build:
 \section{Directions}
 
 \subsubsection{Remove previous components}
-Before beginning, remove the MPU-6050 accelerometer and its wires from Project 6. Leave the
-microcontroller seated in the breadboard. You will be reusing the OLED display, so if it is
+Before beginning, remove the MPU-6050 accelerometer and its wires from Project 6. You will be reusing the OLED display, so if it is
 already wired you may still find it easier to start from an empty board, because this project
 seats it in a different place to make room for the encoder.
 
@@ -79,7 +78,7 @@ land in silkscreen order: \textbf{GND} in \bbhole{encoder.header.ground}{A10},
 \bbhole{encoder.header.sw}{A12}, \textbf{DT} in \bbhole{encoder.header.dt}{A13}, and
 \textbf{CLK} in \bbhole{encoder.header.clk}{A14}.
 
-Seat the OLED's four-pin header in column \textbf{A} further along the board, clear of the
+Seat the OLED's four-pin header in row \textbf{A} further along the board, clear of the
 encoder's body: \textbf{GND} into \bbhole{oled.header.ground}{A19},
 \textbf{VCC} into \bbhole{oled.header.power}{A20},
 \textbf{SCL} into \bbhole{oled.header.scl}{A21}, and
@@ -91,7 +90,7 @@ encoder's body: \textbf{GND} into \bbhole{oled.header.ground}{A19},
     on, and use \textbf{3.3V} rather than 5V.
 \end{tcolorbox}
 
-Insert the speaker's two Dupont leads into the front half of the board, past the display: the
+Insert the speaker's two leads into the front half of the board, past the display: the
 positive red lead into \bbhole{speaker.lead.signal}{C26} and the negative black lead into
 \bbhole{speaker.lead.ground}{C28}.
 
@@ -102,10 +101,9 @@ positive red lead into \bbhole{speaker.lead.signal}{C26} and the negative black 
 \end{figure}
 
 \subsubsection{Ground rail distribution}
-Three separate peripherals need a ground connection in this project, which is more than the
-microcontroller's own \textbf{GND} row can comfortably supply. As in Project 4, we solve this by
-running one wire from \textbf{GND} to the breadboard's top blue ($-$) power rail. Every ground
-connection after this taps the rail instead:
+Three parts need a ground connection, but the microcontroller's body covers most of column 2,
+leaving only two free holes (\textbf{I2} and \textbf{J2}). So, as in Project 4, run one wire from
+\textbf{I2} to the top blue ($-$) rail, and connect every other ground to the rail instead:
 
 \begin{center}
 \begin{tabular}{|l|l|l|}
@@ -174,13 +172,6 @@ The speaker returns to \textbf{GPIO 20}, the pin it used in Project 3:
 
 \subsection{Programming the microcontroller}
 
-Upload the following files to your microcontroller using the IDE:
-\begin{itemize}
-    \item \texttt{project\_7\_desk\_companion.py}
-    \item \texttt{lib/ssd1306.py}, \texttt{lib/rotary.py}, \texttt{lib/rotary\_irq.py}, and
-          \texttt{lib/debounced\_button.py} (all in the \texttt{lib/} directory)
-\end{itemize}
-
 \begin{tcolorbox}[colback=green!5!white,colframe=green!40!black]
     \textbf{Edit these three lines before you run it.} Open
     \texttt{project\_7\_desk\_companion.py} and find the block near the top marked
@@ -205,9 +196,13 @@ I2C bus scanned. Found addresses: ['0x3c']
 No saved settings yet; using defaults.
 Connected to YWIT-Workshop as 192.168.1.42
 Matched location: Pittsburgh, Pennsylvania, United States (40.4406, -79.9959)
-Clock set from the weather server; UTC is (2026, 9, 20, 15, 30, 4, 5, 263)
+Clock set from the weather server; UTC is (2026, 9, 20, 15, 30, 4, 6, 263)
 Weather: {'temperature': 69.9, 'description': 'CLOUDY', 'high': 75.0, ...}
 \end{verbatim}
+
+The numbers after ``UTC is'' are how MicroPython writes a date and time: year, month, day, hour,
+minute, second, day of the week (0 is Monday, so 6 is Sunday), and day of the year. So this one
+means Sunday, September 20, 2026, at 15:30:04, the 263rd day of the year.
 
 \subsection{Using the Desk Companion}
 Turning the knob moves between screens. Pressing it selects something on the screen you are
@@ -255,7 +250,11 @@ stopping with an error.
 \subsubsection{Asking another computer for a web page}
 Project 5 made your board a web \emph{server}: your phone opened a socket to it and asked for a
 page. This project reverses the roles. The board is the \emph{client} now, and it opens a socket to
-a weather service and sends the same kind of request a browser would:
+a weather service and sends the same kind of request a browser would.
+
+The next few listings show the actual text the board sends and receives. You do not need to
+follow every character; the idea is that a web request is just a few lines of text, and the reply
+is too.
 
 \begin{lstlisting}[language=Python, caption=An HTTP GET request built by hand]
 address = socket.getaddrinfo(host, 80)[0][-1]
@@ -266,8 +265,10 @@ request = f"GET {path} HTTP/1.0\r\nHost: {host}\r\nConnection: close\r\n\r\n"
 sock.send(request.encode())
 \end{lstlisting}
 
-\texttt{getaddrinfo} is the step that turns a name such as \texttt{api.open-meteo.com} into an IP
-address, which is what the socket actually needs. The reply arrives as one long stretch of bytes
+Each \texttt{\textbackslash r\textbackslash n} marks the end of one line of the request, and an
+empty line (two in a row) marks the end of the whole request. \texttt{getaddrinfo} is the step that
+turns a name such as \texttt{api.open-meteo.com} into an IP address, which is what the socket
+actually needs. The reply arrives as one long stretch of bytes
 with the headers first, then a blank line, then the content:
 
 \begin{lstlisting}[language=Python, caption=Splitting the reply into headers and content]
@@ -281,8 +282,8 @@ A status of \texttt{200} means the request worked. Anything else is the server t
 not help, and the program prints what it said and keeps the previous reading on screen.
 
 \subsubsection{Turning a city name into coordinates}
-The forecast service still needs latitude and longitude, but students should not have to look those
-numbers up themselves. Open-Meteo has a second service called a \textbf{geocoder}. The program first
+The forecast service needs latitude and longitude, but you should not have to look those numbers
+up yourself. Open-Meteo has a second service called a \textbf{geocoder}. The program first
 sends the value of \texttt{CITY} to that service and asks for its best match:
 
 \begin{lstlisting}[language=Python, caption=Building the city-search request]
@@ -290,9 +291,9 @@ def geocoding_path():
     return f"/v1/search?name={url_encode(CITY)}&count=1&language=en&format=json"
 \end{lstlisting}
 
-A URL cannot contain a literal space, comma, or accented letter. \texttt{url\_encode} converts the
-city's UTF-8 bytes into \emph{percent encoding}: a space becomes \texttt{\%20}, a comma becomes
-\texttt{\%2C}, and so on. That means a value such as \texttt{"Pittsburgh, PA"} can safely be placed
+A URL (a web address) cannot contain a literal space, comma, or accented letter. The short version:
+\texttt{url\_encode} swaps each of those characters for a code, a system called \emph{percent
+encoding}. A space becomes \texttt{\%20}, a comma becomes \texttt{\%2C}, and so on. That means a value such as \texttt{"Pittsburgh, PA"} can safely be placed
 inside an HTTP request.
 
 The geocoding reply contains a list of possible places. Asking for \texttt{count=1} keeps only the
@@ -359,9 +360,9 @@ if server_utc is not None:
     self.set_clock_utc(server_utc)
 \end{lstlisting}
 
-Getting two useful things out of one request is worth noticing. A separate time service would be a
-second thing to wait for, a second thing to get blocked, and a second thing to explain when it
-fails.
+Getting two useful things out of one request is worth noticing. A separate time service would be
+one more thing to wait for, one more thing a school network might block, and one more thing that
+could go wrong for you to track down.
 
 The clock keeps \textbf{UTC}, the worldwide reference time, which is four or five hours ahead of
 the eastern United States depending on daylight saving. Rather than make you edit that number twice
@@ -398,13 +399,19 @@ class Screen:
         """Knob button pressed."""
 \end{lstlisting}
 
+Look closely at the three methods. \texttt{turn} and \texttt{press} contain only a docstring, so
+they do nothing at all: a screen that has no use for the knob can just leave them alone.
+\texttt{draw} is different. Every screen must draw something, so if a screen forgets to provide its
+own \texttt{draw}, the line \texttt{raise NotImplementedError} stops the program with an error that
+says exactly what is missing.
+
 There are five screens, and each one is declared the same way. Writing
 \texttt{class ClockScreen(Screen):} means ``this is a \texttt{Screen}, plus the following
 differences,'' so a screen only has to describe what makes it different. Adding a sixth screen means
 writing one more small class and adding it to the list; nothing else in the program changes.
 
 Two of the screens go a step further. Setting the alarm and setting the clock by hand need exactly
-the same knob behaviour: press once to start on the hour, press again for the minute, and turn to
+the same knob behavior: press once to start on the hour, press again for the minute, and turn to
 change whichever one is underlined. Rather than write that twice, a \texttt{TimeEditScreen} class
 holds the shared part, and the two screens say what is different about them --- where the hour and
 minute are kept, and what to do once you have finished editing. The alarm screen also adds a third
@@ -437,13 +444,13 @@ reads files has to assume the file might be missing or wrong. The cached locatio
 original \texttt{CITY} query; if that line changes, the program knows the old coordinates should be
 discarded and looked up again.
 
-\subsubsection{A loop that never waits}
+\subsubsection{A loop that keeps every job moving}
 Project 3 played tones with \texttt{time.sleep\_ms()}, which is fine when the only job is making a
 noise. An alarm clock cannot do that: while it beeps it still has to redraw the screen and watch for
 you pressing the knob. So the beeping is broken into ``switch the sound on, and note when to switch
 it off again'':
 
-\begin{lstlisting}[language=Python, caption=Beeping without blocking]
+\begin{lstlisting}[language=Python, caption=Beeping without stopping everything else]
 def tick(self, now_ms):
     """Called every time round the main loop to keep the beeps going."""
     if not self.ringing:
@@ -458,27 +465,30 @@ def tick(self, now_ms):
         self.next_change_ms = time.ticks_add(now_ms, BEEP_ON_MS)
 \end{lstlisting}
 
-The main loop uses the same idea for everything slow. Rather than counting how long ago something
-happened, each job stores the time it is next \emph{due}:
+The network jobs use the same idea. The main loop calls \texttt{service\_network} on every pass, and
+each job inside it stores the time it is next \emph{due}. Most passes, nothing is due yet, so the
+function returns straight away:
 
-\begin{lstlisting}[language=Python, caption=The main loop]
-while True:
-    now_ms = time.ticks_ms()
+\begin{lstlisting}[language=Python, caption=Doing network jobs only when they are due]
+if not self.online:
+    if time.ticks_diff(now_ms, self.next_join_ms) >= 0:
+        self.next_join_ms = time.ticks_add(now_ms, RETRY_MS)
+        self.rejoin_wifi()
+    ...
+    return
 
-    self.handle_input()
-    self.check_alarm(now_ms)
-    self.beeper.tick(now_ms)
-    self.service_network(now_ms)
-
-    if time.ticks_diff(now_ms, last_draw_ms) > DRAW_INTERVAL_MS:
-        self.draw()
-        last_draw_ms = now_ms
-
-    time.sleep_ms(10)
+if time.ticks_diff(now_ms, self.next_weather_ms) >= 0:
+    succeeded = self.fetch_weather()
+    self.next_weather_ms = time.ticks_add(
+        now_ms, WEATHER_REFRESH_MS if succeeded else RETRY_MS
+    )
 \end{lstlisting}
 
-The screen is redrawn four times a second and the weather is refetched every fifteen minutes, which
-also nudges the clock back into line, all without any part of the program waiting for another.
+A failed fetch is tried again a minute later; a successful one is not repeated for fifteen minutes.
+The screen is redrawn four times a second, and each weather refresh also nudges the clock back into
+line. Each pass of the main loop ends with a 10\,ms pause, and a weather fetch can hold things up for
+a few seconds while the server replies. Those waits are short and rare, though, so the knob, the
+screen, and the alarm all keep responding.
 
 \subsubsection{Drawing big digits}
 The OLED library can only print small 8-pixel text, which is far too fine to read across a room. The
@@ -516,7 +526,7 @@ for name in SEGMENTS.get(character, ""):
         \item \textbf{Screen stays dark:} Check the OLED power and ground (\bbref{jumper.oled-power.start} to
               \bbref{jumper.oled-power.end}, and \bbref{jumper.oled-ground.start} to \bbref{jumper.oled-ground.end}),
               and check that the ground rail wire \bbref{jumper.mcu-ground.start} to \bbref{jumper.mcu-ground.end} is in place.
-              If the serial output shows an empty I\textsuperscript{2}C scan, check SCL on GPIO 7
+              If the serial console shows an empty I\textsuperscript{2}C scan, check SCL on GPIO 7
               (\bbref{jumper.oled-scl.start} to \bbref{jumper.oled-scl.end}) and SDA on GPIO 6
               (\bbref{jumper.oled-sda.start} to \bbref{jumper.oled-sda.end}).
         \item \textbf{It says NO WI-FI:} Check that the antenna plug is pressed fully onto its socket, then
@@ -524,7 +534,7 @@ for name in SEGMENTS.get(character, ""):
               ESP32-C3 only joins 2.4\,GHz networks, so a 5\,GHz-only network will never appear. Networks
               that make you accept terms in a browser first cannot be used at all.
         \item \textbf{Clock is right but weather says NO DATA:} The board reached the network but not the
-              weather service. Watch the serial output: it prints the reason. A free public service is
+              weather service. Watch the serial console: it prints the reason. A free public service is
               sometimes simply overloaded, and the board retries every minute.
         \item \textbf{It says No location found:} Make \texttt{CITY} more specific and check its spelling.
               Use a full qualifier such as \texttt{"Springfield, Illinois"} rather than an abbreviation
@@ -548,28 +558,25 @@ In this project you built a complete, useful device that combines everything the
 introduced with a set of new software ideas. You learned:
 \begin{itemize}
     \item How joining a network in station mode differs from hosting one as an access point
-    \item How an HTTP request is built and how its reply is split into a status, headers, and content
+    \item How an HTTP request is built, and how to read the status, headers, and JSON data in its reply
     \item How geocoding turns a human-readable city name into forecast coordinates
-    \item How to read real data out of a public web service's JSON
     \item How a board with no clock of its own learns the time from a reply it already needed, and how
           UTC becomes local time
-    \item How writing your own classes keeps a large program readable
-    \item How to store settings in a file so they outlive a power cut
-    \item Why a program that has several jobs must never sit inside \texttt{sleep}
+    \item How your own classes keep a large program readable, and how a settings file outlives a power cut
+    \item Why a program with several jobs should keep its pauses short instead of sitting in a long \texttt{sleep}
 \end{itemize}
 
 \section{Possible Extensions}
 \begin{itemize}
     \item \textbf{Auto-dimming:} Reconnect the LDR and 10\,k\si{\ohm} resistor from Project 1 to GPIO 2 and use
           \texttt{oled.contrast()} to dim the display in a dark room.
-    \item \textbf{Sunrise alarm:} Reconnect the WS2812B strip from Project 4 and fade it up from red to white
-          over the minute before the alarm rings.
-    \item \textbf{A nicer alarm:} Replace the single beep with a melody, reusing the note tables from Project 4.
+    \item \textbf{Sunrise alarm:} Reconnect the WS2812B strip from Project 4, fade it up from red to white
+          over the minute before the alarm rings, and replace the single beep with a melody from Project 4's
+          note tables.
     \item \textbf{A week's forecast:} Ask the service for \texttt{forecast\_days=5} and add a screen that pages
           through the coming days.
     \item \textbf{A second city:} Keep a list of city names in the settings file and let the knob choose which
           place the weather screen shows, geocoding and caching each one as it is first used.
-    \item \textbf{Timer mode:} Add a screen that counts down a number of minutes you dial in, so the same
-          hardware doubles as a study or cooking timer.
+    \item \textbf{Timer mode:} Add a countdown screen so the same hardware doubles as a study or cooking timer.
     \item \textbf{Remember more:} Save which screen you were on, and reopen it after a reboot.
 \end{itemize}

@@ -30,7 +30,6 @@ YELLOW_MAX_MS = 1400
 LOOP_DELAY_MS = 10
 
 COLOR_OFF = (0, 0, 0)
-COLOR_IDLE = (0, 0, 12)
 COLOR_GREEN = (0, 18, 0)
 COLOR_RED = (20, 0, 0)
 COLOR_YELLOW = (16, 10, 0)
@@ -53,9 +52,7 @@ def set_all(color):
 
 
 def show_idle():
-    set_all(COLOR_OFF)
-    pixels[LED_YELLOW] = COLOR_IDLE
-    pixels.write()
+    show_stoplight(yellow_on=True)
 
 
 def flash(color, count, on_ms=120, off_ms=80):

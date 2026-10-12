@@ -844,13 +844,15 @@ def draw_resistor(d: Drawing, end_a: str, end_b: str, value: str) -> None:
     d.add("</g>")
 
 
-def draw_pixel_module(d: Drawing, pcb_row: int = 16) -> None:
+def draw_pixel_module(d: Drawing, pcb_row: int = 16, mirrored: bool = False) -> None:
     """The 3-pixel WS2812B module, drawn face-on in the margin above the board.
 
     Its right-angle header holds the PCB upright once seated, so a plan view
     would show nothing but the board's edge. Drawing it face-on and running
     leaders down to its three holes keeps the LEDs and the pad names readable
-    while still saying exactly where it plugs in.
+    while still saying exactly where it plugs in. ``pcb_row`` sets the PCB's
+    left edge; ``mirrored`` puts the header on the right, so the module can sit
+    to the left of the holes it plugs into.
     """
     pads = (
         ("pixels.header.power", "5V"),
@@ -859,8 +861,14 @@ def draw_pixel_module(d: Drawing, pcb_row: int = 16) -> None:
     )
     pcb_x, pcb_y = row_x(pcb_row), -180.0
     pcb_w, pcb_h = 13 * PITCH, 96.0
-    pin_x = pcb_x - 26
     pad_ys = [pcb_y + 24 + index * PITCH for index in range(3)]
+
+    def mx(x: float, width: float = 0.0) -> float:
+        """Mirror an x position (or the left edge of a ``width``-wide shape)."""
+        return 2 * pcb_x + pcb_w - x - width if mirrored else x
+
+    header_x = mx(pcb_x)
+    pin_x = mx(pcb_x - 26)
 
     d.text(
         pcb_x + pcb_w / 2,
@@ -875,7 +883,7 @@ def draw_pixel_module(d: Drawing, pcb_row: int = 16) -> None:
     for pad_y in pad_ys:
         for width, colour in ((6.5, LEAD_EDGE), (3.6, LEAD_FILL)):
             d.add(
-                f'<line x1="{pcb_x:.2f}" y1="{pad_y:.2f}" x2="{pin_x:.2f}" '
+                f'<line x1="{header_x:.2f}" y1="{pad_y:.2f}" x2="{pin_x:.2f}" '
                 f'y2="{pad_y:.2f}" stroke="{colour}" stroke-width="{width}" '
                 f'stroke-linecap="round"/>'
             )
@@ -889,13 +897,13 @@ def draw_pixel_module(d: Drawing, pcb_row: int = 16) -> None:
         f'rx="7" fill="{MODULE_PCB}" stroke="{MODULE_EDGE}" stroke-width="1.5"/>'
     )
     d.add(
-        f'<rect x="{pcb_x - 4:.2f}" y="{pad_ys[0] - 14:.2f}" width="15" '
+        f'<rect x="{mx(pcb_x - 4, 15):.2f}" y="{pad_ys[0] - 14:.2f}" width="15" '
         f'height="{pad_ys[-1] - pad_ys[0] + 28:.2f}" rx="2" fill="#101215" '
         f'stroke="{MODULE_EDGE}" stroke-width="1"/>'
     )
 
     for index in range(3):
-        led_x = pcb_x + 86 + index * 70
+        led_x = mx(pcb_x + 86 + index * 70)
         led_y = pcb_y + pcb_h / 2
         d.add(
             f'<rect x="{led_x - 29:.2f}" y="{led_y - 29:.2f}" width="58" height="58" '
@@ -907,19 +915,28 @@ def draw_pixel_module(d: Drawing, pcb_row: int = 16) -> None:
         )
         # Decoupling capacitor alongside each pixel, as on the real board.
         d.add(
-            f'<rect x="{led_x - 29:.2f}" y="{led_y - 45:.2f}" width="13" height="8" '
+            f'<rect x="{led_x + 16 if mirrored else led_x - 29:.2f}" '
+            f'y="{led_y - 45:.2f}" width="13" height="8" '
             f'rx="2" fill="#57503f"/>'
         )
 
     # Unused output pads at the far end of the chain.
     for pad_y in pad_ys:
         d.add(
-            f'<circle cx="{pcb_x + pcb_w - 22:.2f}" cy="{pad_y:.2f}" r="7" '
+            f'<circle cx="{mx(pcb_x + pcb_w - 22):.2f}" cy="{pad_y:.2f}" r="7" '
             f'fill="{PAD_FILL}" stroke="#9a7f45" stroke-width="1.5"/>'
         )
 
     for (name, label), pad_y in zip(pads, pad_ys):
-        d.text(pcb_x + 15, pad_y + 3.5, label, size=10, fill="#eef1f4", anchor="start", weight="bold")
+        d.text(
+            mx(pcb_x + 15),
+            pad_y + 3.5,
+            label,
+            size=10,
+            fill="#eef1f4",
+            anchor="end" if mirrored else "start",
+            weight="bold",
+        )
         hx, hy = hole(named_hole(name))
         d.add(
             f'<path d="M {pin_x:.2f} {pad_y:.2f} L {hx:.2f} {hy:.2f}" fill="none" '
@@ -1173,20 +1190,27 @@ def draw_rotary_encoder(d: Drawing) -> None:
         )
 
 
-def draw_speaker(d: Drawing) -> None:
+def draw_speaker(d: Drawing, above: bool = False) -> None:
     """Draw the external mini speaker and its two adapted Dupont leads.
 
-    Like the encoder, it is drawn in front of the board, on the same side as the
-    holes its leads plug into.
+    Like the encoder, it is normally drawn in front of the board, on the same
+    side as the holes its leads plug into. With ``above`` it sits in the back
+    margin instead, for diagrams with no encoder that would otherwise need a
+    deep front margin just for the speaker.
     """
-    centre_x, centre_y = row_x(25), BOARD_H + 113.0
     radius = 66.0
+    if above:
+        centre_x, centre_y = row_x(30) + 10, -125.0
+        label_y = centre_y - radius - 12
+    else:
+        centre_x, centre_y = row_x(25), BOARD_H + 113.0
+        label_y = centre_y + radius + 24
     signal_hole = hole(named_hole("speaker.lead.signal"))
     ground_hole = hole(named_hole("speaker.lead.ground"))
 
     d.text(
         centre_x,
-        centre_y + radius + 24,
+        label_y,
         "1 W, 8 \u03a9 mini speaker",
         size=13,
         fill=LABEL_GREY,
@@ -1213,14 +1237,31 @@ def draw_speaker(d: Drawing) -> None:
         f'fill="#7b838a" opacity="0.55"/>'
     )
 
-    terminals = (
-        (centre_x - 22, centre_y - radius + 4, signal_hole, WIRE_RED, "+"),
-        (centre_x + 22, centre_y - radius + 4, ground_hole, WIRE_BLACK, "\u2212"),
-    )
+    if above:
+        # The speaker sits right of both holes, so the ground lead (left) hooks
+        # into its hole from the right and the signal lead (right) passes
+        # underneath it to reach the hole further left, and the two never cross.
+        terminal_y, label_dy = centre_y + radius - 4, -8
+        terminals = (
+            (centre_x - 22, terminal_y, ground_hole, WIRE_BLACK, "\u2212"),
+            (centre_x + 22, terminal_y, signal_hole, WIRE_RED, "+"),
+        )
+    else:
+        terminal_y, label_dy = centre_y - radius + 4, 16
+        terminals = (
+            (centre_x - 22, terminal_y, signal_hole, WIRE_RED, "+"),
+            (centre_x + 22, terminal_y, ground_hole, WIRE_BLACK, "\u2212"),
+        )
     for start_x, start_y, (end_x, end_y), colour, label in terminals:
+        if above and colour == WIRE_BLACK:
+            controls = f"{start_x:.2f} {end_y - 30:.2f}, {end_x + 34:.2f} {end_y:.2f}"
+        elif above:
+            controls = f"{start_x:.2f} {end_y + 70:.2f}, {end_x + 30:.2f} {end_y + 45:.2f}"
+        else:
+            controls = f"{start_x:.2f} {BOARD_H - 30}, {end_x:.2f} {BOARD_H - 95}"
         path = (
             f"M {start_x:.2f} {start_y:.2f} "
-            f"C {start_x:.2f} {BOARD_H - 30}, {end_x:.2f} {BOARD_H - 95}, "
+            f"C {controls}, "
             f"{end_x:.2f} {end_y:.2f}"
         )
         d.add(
@@ -1237,7 +1278,7 @@ def draw_speaker(d: Drawing) -> None:
         )
         d.text(
             start_x,
-            start_y + 16,
+            start_y + label_dy,
             label,
             size=12,
             fill="#ffffff",
@@ -2448,7 +2489,7 @@ def diagram_project_3_wiring() -> Drawing:
 
 
 def diagram_project_4_wiring() -> Drawing:
-    d = Drawing(MARGIN_T_MODULE, MARGIN_B_ENCODER)
+    d = Drawing(MARGIN_T_MODULE)
     draw_breadboard(d)
     draw_xiao(d)
 
@@ -2580,8 +2621,8 @@ def diagram_project_4_wiring() -> Drawing:
         supply="gnd",
     )
 
-    draw_pixel_module(d, pcb_row=18)
-    draw_speaker(d)
+    draw_pixel_module(d, pcb_row=6, mirrored=True)
+    draw_speaker(d, above=True)
 
     # Callouts
     mcu_gnd = named_hole("jumper.mcu-ground.start")
@@ -2819,7 +2860,7 @@ def diagram_project_3_components_placed() -> Drawing:
 
 
 def diagram_project_4_components_placed() -> Drawing:
-    d = Drawing(MARGIN_T_MODULE, MARGIN_B_ENCODER)
+    d = Drawing(MARGIN_T_MODULE)
     draw_breadboard(d)
     draw_xiao(d)
     draw_tactile_button(
@@ -2834,8 +2875,8 @@ def diagram_project_4_components_placed() -> Drawing:
         d, named_hole("pad2.side-a"), named_hole("pad2.side-b"), "Pad 2",
         label_offset_x=0, anchor="middle",
     )
-    draw_pixel_module(d, pcb_row=18)
-    draw_speaker(d)
+    draw_pixel_module(d, pcb_row=6, mirrored=True)
+    draw_speaker(d, above=True)
     return d
 
 
