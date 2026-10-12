@@ -20,6 +20,7 @@
 *.ps
 *.eps
 *.pdf
+!micropython_workshop/project_guide/images/**/*.pdf
 
 ## Bibliography auxiliary files (bibtex/biblatex/biber):
 *.bbl

@@ -70,7 +70,7 @@ cd micropython_workshop/project_guide
 python3 tools/diagram_generator.py              # or --project 3
 ```
 
-The script needs `rsvg-convert` to turn generated SVG into PNG (`brew install librsvg` on
+The script needs `rsvg-convert` to turn generated SVG into vector PDF (`brew install librsvg` on
 macOS, or `apt install librsvg2-bin` on Debian/Ubuntu). It refuses to draw anything it cannot
 verify against the text, which catches several kinds of drift:
 

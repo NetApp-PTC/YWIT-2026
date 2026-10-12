@@ -17,8 +17,8 @@ colour, so a crowded diagram may use another colour once those are used up.
 Usage:
     python3 tools/diagram_generator.py [--project 3]
 
-Writes PNG files under project_guide/images/. Requires rsvg-convert
-(brew install librsvg) to rasterize the generated SVG.
+Writes vector PDF files under project_guide/images/. Requires rsvg-convert
+(brew install librsvg) to convert the generated SVG.
 """
 
 from __future__ import annotations
@@ -2882,65 +2882,65 @@ PROJECTS = {
         source=PROJECT_GUIDE_DIR / "projects" / "project_1.tex",
         coordinates=PROJECT_1_COORDINATES,
         outputs={
-            "electronics_preamble/breadboard_illustration.png": diagram_breadboard_overview,
-            "electronics_preamble/button_illustration.png": diagram_button_illustration,
-            "electronics_preamble/led_polarity.png": diagram_led_polarity,
-            "electronics_preamble/resistor_220.png": lambda: diagram_resistor_identification("220"),
-            "electronics_preamble/resistor_10k.png": lambda: diagram_resistor_identification("10k"),
-            "electronics_preamble/jumper_illustration.png": diagram_jumper_illustration,
-            "common/microcontroller_seated_in_breadboard.png": diagram_microcontroller_seated,
-            "project_1/led_placed.png": diagram_led_placed,
-            "project_1/components_placed.png": diagram_components_placed,
-            "project_1/wired_up.png": diagram_wired_up,
-            "project_1/voltage_divider.png": diagram_voltage_divider,
+            "electronics_preamble/breadboard_illustration.pdf": diagram_breadboard_overview,
+            "electronics_preamble/button_illustration.pdf": diagram_button_illustration,
+            "electronics_preamble/led_polarity.pdf": diagram_led_polarity,
+            "electronics_preamble/resistor_220.pdf": lambda: diagram_resistor_identification("220"),
+            "electronics_preamble/resistor_10k.pdf": lambda: diagram_resistor_identification("10k"),
+            "electronics_preamble/jumper_illustration.pdf": diagram_jumper_illustration,
+            "common/microcontroller_seated_in_breadboard.pdf": diagram_microcontroller_seated,
+            "project_1/led_placed.pdf": diagram_led_placed,
+            "project_1/components_placed.pdf": diagram_components_placed,
+            "project_1/wired_up.pdf": diagram_wired_up,
+            "project_1/voltage_divider.pdf": diagram_voltage_divider,
         },
     ),
     2: ProjectDiagrams(
         source=PROJECT_GUIDE_DIR / "projects" / "project_2.tex",
         coordinates=PIXEL_MODULE_COORDINATES | BUTTON_COORDINATES,
         outputs={
-            "project_2/components_placed.png": diagram_project_2_components_placed,
-            "project_2/wiring.png": diagram_project_2_wiring,
+            "project_2/components_placed.pdf": diagram_project_2_components_placed,
+            "project_2/wiring.pdf": diagram_project_2_wiring,
         },
     ),
     3: ProjectDiagrams(
         source=PROJECT_GUIDE_DIR / "projects" / "project_3.tex",
         coordinates=ENCODER_COORDINATES | SPEAKER_COORDINATES,
         outputs={
-            "project_3/components_placed.png": diagram_project_3_components_placed,
-            "project_3/wiring.png": diagram_project_3_wiring,
+            "project_3/components_placed.pdf": diagram_project_3_components_placed,
+            "project_3/wiring.pdf": diagram_project_3_wiring,
         },
     ),
     4: ProjectDiagrams(
         source=PROJECT_GUIDE_DIR / "projects" / "project_4.tex",
         coordinates=PROJECT_4_COORDINATES,
         outputs={
-            "project_4/components_placed.png": diagram_project_4_components_placed,
-            "project_4/wiring.png": diagram_project_4_wiring,
+            "project_4/components_placed.pdf": diagram_project_4_components_placed,
+            "project_4/wiring.pdf": diagram_project_4_wiring,
         },
     ),
     5: ProjectDiagrams(
         source=PROJECT_GUIDE_DIR / "projects" / "project_5.tex",
         coordinates=PIXEL_MODULE_COORDINATES,
         outputs={
-            "project_5/components_placed.png": diagram_project_5_components_placed,
-            "project_5/wiring.png": diagram_project_5_wiring,
+            "project_5/components_placed.pdf": diagram_project_5_components_placed,
+            "project_5/wiring.pdf": diagram_project_5_wiring,
         },
     ),
     6: ProjectDiagrams(
         source=PROJECT_GUIDE_DIR / "projects" / "project_6.tex",
         coordinates=PROJECT_6_COORDINATES,
         outputs={
-            "project_6/components_placed.png": diagram_project_6_components_placed,
-            "project_6/wiring.png": diagram_project_6_wiring,
+            "project_6/components_placed.pdf": diagram_project_6_components_placed,
+            "project_6/wiring.pdf": diagram_project_6_wiring,
         },
     ),
     7: ProjectDiagrams(
         source=PROJECT_GUIDE_DIR / "projects" / "project_7.tex",
         coordinates=PROJECT_7_COORDINATES,
         outputs={
-            "project_7/components_placed.png": diagram_project_7_components_placed,
-            "project_7/wiring.png": diagram_project_7_wiring,
+            "project_7/components_placed.pdf": diagram_project_7_components_placed,
+            "project_7/wiring.pdf": diagram_project_7_wiring,
         },
     ),
 }
@@ -2948,7 +2948,6 @@ PROJECTS = {
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--width", type=int, default=2200, help="output PNG width in pixels")
     parser.add_argument(
         "--project",
         choices=("all", *(str(number) for number in PROJECTS)),
@@ -2959,7 +2958,7 @@ def main() -> int:
         "--out",
         type=Path,
         default=PROJECT_GUIDE_DIR / "images",
-        help="directory to write PNGs into",
+        help="directory to write PDFs into",
     )
     args = parser.parse_args()
 
@@ -2993,7 +2992,7 @@ def main() -> int:
             with tempfile.NamedTemporaryFile("w", suffix=".svg", delete=False) as fh:
                 fh.write(svg)
                 svg_path = fh.name
-            subprocess.run([rsvg, "-w", str(args.width), "-o", str(target), svg_path], check=True)
+            subprocess.run([rsvg, "-f", "pdf", "-o", str(target), svg_path], check=True)
             Path(svg_path).unlink()
             print(f"wrote {target}")
 
