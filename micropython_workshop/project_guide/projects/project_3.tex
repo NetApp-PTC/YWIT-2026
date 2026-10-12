@@ -6,42 +6,26 @@ Spin the encoder dial to select digits 0--9, press the built-in encoder button t
 and listen for audio hints that get warmer as you approach the correct value. Match the full secret
 sequence to ``open the safe!''
 
-Over the course of this project, you will:
-\begin{itemize}
-    \item Wire a KY-040 rotary encoder module to your microcontroller
-    \item Wire a small speaker using PWM (Pulse Width Modulation) to generate tones
-    \item Use library code to reliably read encoder rotation and button presses
-    \item Program a game loop with randomized secret codes and audio proximity feedback
-    \item Practice reading serial output to debug your program
-\end{itemize}
-
 At the end of this project, your microcontroller will run a fully playable combination-lock game
 entirely driven by sound and a single knob—no screen required!
 
 \begin{figure}[H]
 \centering
-    \maybeincludegraphics[width=.6\linewidth]{project_3/success.jpg}
+    \maybeincludegraphics[width=.85\linewidth]{project_3/success.jpg}
     \caption{The assembled Safe Cracker, ready for a code to be cracked}
 \end{figure}
 
 \begin{tcolorbox}[colback=blue!5!white,colframe=blue!40!black]
     \textbf{Learning goals:}
     \begin{itemize}
-        \item Read a rotary encoder's turns and button presses with interrupt-driven library code
-        \item Play tones of different pitches on a speaker with PWM
+        \item Wire a KY-040 rotary encoder and read its turns and button presses with interrupt-driven
+              library code
+        \item Wire a small speaker and play tones of different pitches on it with PWM (Pulse Width
+              Modulation)
         \item Use circular distance to turn ``how close'' into hot-and-cold audio feedback
-        \item Organize a game with state variables, callbacks, and a main loop
+        \item Organize a game with a randomized secret code, state variables, callbacks, and a main loop
+        \item Read serial output to debug your program
     \end{itemize}
-\end{tcolorbox}
-
-\begin{tcolorbox}[colback=blue!5!white,colframe=blue!40!black]
-    \textbf{How the game works:}
-    A random 3-digit secret code (each digit 0--9) is generated when the program starts and printed
-    to the serial console. Spin the encoder knob to change the current dial value. As you get closer
-    to the target digit, the tone played on each tick gets higher and shorter. When you are exactly
-    on the target, you hear a sharp high click. Press the encoder button to lock in your digit.
-    A correct digit advances you to the next position; a wrong digit plays a low buzz and you try
-    again. Crack all three digits to trigger the victory fanfare and start a new game!
 \end{tcolorbox}
 
 \pagebreak
@@ -143,6 +127,16 @@ breadboard: the positive lead in \bbhole{speaker.lead.signal}{C20} and the negat
     \maybeincludegraphics[width=.95\linewidth]{project_3/wiring.png}
     \caption{The encoder and speaker are fully wired to the XIAO ESP32-C3.}
 \end{figure}
+
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!40!black]
+    \textbf{How the game works:}
+    A random 3-digit secret code (each digit 0--9) is generated when the program starts and printed
+    to the serial console. Spin the encoder knob to change the current dial value. As you get closer
+    to the target digit, the tone played on each tick gets higher and shorter. When you are exactly
+    on the target, you hear a sharp high click. Press the encoder button to lock in your digit.
+    A correct digit advances you to the next position; a wrong digit plays a low buzz and you try
+    again. Crack all three digits to trigger the victory fanfare and start a new game!
+\end{tcolorbox}
 
 \subsection{Understanding the Code}
 

@@ -6,30 +6,22 @@ After uploading a Python file plus one HTML dashboard file, you will connect you
 laptop to the microcontroller's network, open a local web page, and control a chain of
 three WS2812B LEDs.
 
-You will build:
-\begin{itemize}
-    \item A password-protected Wi-Fi network hosted by the ESP32-C3
-    \item A local web dashboard served directly from the board
-    \item Manual lighting controls for all LEDs together and for each LED individually
-    \item A set of built-in animations (breathing, rainbow, wipe, and blink)
-\end{itemize}
-
 By the end, you will have a complete wireless ``mood lamp'' that works without internet.
 
 \begin{figure}[H]
 \centering
-    \maybeincludegraphics[width=.6\linewidth]{project_5/success.jpg}
+    \maybeincludegraphics[width=.85\linewidth]{project_5/success.jpg}
     \caption{The finished mood lamp, controlled from a phone}
 \end{figure}
 
 \begin{tcolorbox}[colback=blue!5!white,colframe=blue!40!black]
     \textbf{Learning goals:}
     \begin{itemize}
-        \item Host a Wi-Fi network from the ESP32-C3 in \emph{access point} mode
-        \item Act as a web \emph{server}: accept connections on a socket and answer HTTP requests
-        \item Send and receive JSON between a web page and the microcontroller
-        \item Step LED animations with millisecond timing in the same loop that waits for
-              requests, so the lights keep moving while the board answers the web page
+        \item Host a password-protected Wi-Fi network from the ESP32-C3 in \emph{access point} mode
+        \item Act as a web \emph{server}: serve a dashboard from the board and answer its HTTP requests
+        \item Send and receive JSON so the page can set all LEDs together or each one individually
+        \item Step animations (breathing, rainbow, wipe, and blink) with millisecond timing in the same
+              loop that waits for requests, so the lights keep moving while the board answers
     \end{itemize}
 \end{tcolorbox}
 

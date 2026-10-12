@@ -7,28 +7,21 @@ I\textsuperscript{2}C bus, your microcontroller will measure how much you tilt t
 and roll a ball sprite through a maze on screen. Guide the ball from the starting corner to the goal without
 getting trapped in dead ends!
 
-Over the course of this project, you will:
-\begin{itemize}
-    \item Connect multiple digital devices to a single shared I\textsuperscript{2}C bus
-    \item Read tilt and gravity data from an MPU-6050 accelerometer
-    \item Drive a high-resolution monochrome OLED screen using MicroPython's \texttt{framebuf} graphics library
-    \item Implement 2D physics (acceleration, velocity, friction, and wall collisions) in Python
-    \item Build a complete, responsive interactive game
-\end{itemize}
-
 \begin{figure}[H]
 \centering
-    \maybeincludegraphics[width=.6\linewidth]{project_6/success.jpg}
+    \maybeincludegraphics[width=.85\linewidth]{project_6/success.jpg}
     \caption{The end result should look something like this}
 \end{figure}
 
 \begin{tcolorbox}[colback=blue!5!white,colframe=blue!40!black]
     \textbf{Learning goals:}
     \begin{itemize}
-        \item Understand how the I\textsuperscript{2}C protocol uses two shared wires (SCL and SDA) to talk to multiple chips
-        \item Measure physical tilt using 16-bit accelerometer readings
-        \item Draw shapes, text, and sprites on an SSD1306 OLED display
-        \item Calculate axis-aligned bounding box (AABB) collisions between a moving ball and maze walls
+        \item Connect two chips to one shared I\textsuperscript{2}C bus, which talks to both over the same
+              two wires (SCL and SDA)
+        \item Measure tilt and gravity from 16-bit MPU-6050 accelerometer readings
+        \item Draw shapes, text, and sprites on an SSD1306 OLED with MicroPython's \texttt{framebuf} library
+        \item Implement 2D physics (acceleration, velocity, and friction) and axis-aligned bounding box
+              (AABB) collisions between the ball and the maze walls
     \end{itemize}
 \end{tcolorbox}
 

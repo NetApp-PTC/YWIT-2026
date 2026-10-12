@@ -5,27 +5,20 @@ In this project, you will turn your microcontroller into a handheld musical inst
 You will wire three pushbuttons, a mini speaker, and a 3-pixel RGB LED strip to your breadboard.
 Pressing each button triggers a distinct musical note on the speaker and lights up a matching colored pixel on the LED strip.
 
-Over the course of this project, you will:
-\begin{itemize}
-    \item Connect multiple tactile pushbuttons and read them using MicroPython
-    \item Use PWM (Pulse Width Modulation) to generate different pitch frequencies on a speaker
-    \item Control individual addressable WS2812B RGB LEDs to create synchronized visual pulses
-    \item Program rhythm loops and sound sequences using Python lists and tuples
-\end{itemize}
-
 \begin{figure}[H]
 \centering
-    \maybeincludegraphics[width=.6\linewidth]{project_4/success.jpg}
+    \maybeincludegraphics[width=.85\linewidth]{project_4/success.jpg}
     \caption{The assembled Pocket DJ ready to drop some beats!}
 \end{figure}
 
 \begin{tcolorbox}[colback=blue!5!white,colframe=blue!40!black]
     \textbf{Learning goals:}
     \begin{itemize}
-        \item Read pushbuttons with active-low logic and internal pull-up resistors
-        \item Generate musical notes by controlling PWM frequency on a speaker
-        \item Control WS2812B addressable LEDs using the \texttt{neopixel} library
-        \item Structure musical sequences and automated rhythm loops in code
+        \item Wire three pushbuttons and read them with active-low logic and internal pull-up resistors
+        \item Generate musical notes on a speaker by changing the PWM (Pulse Width Modulation) frequency
+        \item Light individual WS2812B addressable LEDs in sync with the notes using the \texttt{neopixel}
+              library
+        \item Structure musical sequences and rhythm loops with Python lists and tuples
     \end{itemize}
 \end{tcolorbox}
 

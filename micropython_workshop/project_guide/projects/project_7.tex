@@ -13,35 +13,28 @@ internet for information.
 
 You will build:
 \begin{itemize}
-    \item A clock that learns the correct time from the internet
-    \item A weather screen showing the current temperature, conditions, and today's high and low
-    \item An alarm you set with the knob, which rings through the speaker and can be snoozed
+    \item A clock that sets itself from the internet, and a weather screen with today's conditions,
+          high, and low
+    \item An alarm you set with the knob that rings, snoozes, and is remembered after the board is
+          unplugged
     \item A menu of screens you page through by turning the knob
-    \item Settings that are written to the board's own filesystem, so your alarm is still there
-          after the microcontroller has been unplugged
 \end{itemize}
 
 \begin{figure}[H]
 \centering
-    \maybeincludegraphics[width=.6\linewidth]{project_7/success.jpg}
+    \maybeincludegraphics[width=.85\linewidth]{project_7/success.jpg}
     \caption{The finished Desk Companion, showing the time and the current conditions}
 \end{figure}
 
 \begin{tcolorbox}[colback=blue!5!white,colframe=blue!40!black]
     \textbf{Learning goals:}
     \begin{itemize}
-        \item Join an existing Wi-Fi network in \emph{station} mode, the opposite of the access
-              point you hosted in Project 5
-        \item Act as an HTTP \emph{client}: request a page from someone else's server and read the
-              reply
-        \item Use a geocoding service to turn a city name into latitude and longitude
-        \item Pull the values you need out of JSON sent by a real public web service
-        \item Set the board's real-time clock from the headers of a reply you already asked for, and
-              convert UTC into local time
-        \item Write your own Python classes to organize a program that does several things at once
+        \item Join a Wi-Fi network in \emph{station} mode (the opposite of Project 5's access point)
+              and act as an HTTP \emph{client}
+        \item Turn a city name into coordinates with a geocoding service, and pull values out of JSON
+        \item Set the real-time clock from the headers of a reply, and convert UTC into local time
         \item Save settings to a file on the microcontroller so they survive a power cycle
-        \item Write a main loop that never blocks, so the screen, the knob, and the alarm all stay
-              responsive
+        \item Organize the program with your own classes and a main loop that never blocks
     \end{itemize}
 \end{tcolorbox}
 
