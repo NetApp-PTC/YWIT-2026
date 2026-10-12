@@ -162,8 +162,8 @@ class SimpleButton:
 \begin{itemize}
     \item \textbf{\texttt{\_\_init\_\_} method:} Automatically called when a new object is created (e.g.,
     \texttt{btn = SimpleButton(21, on\_press)}). It initializes variables unique to that instance.
-    \item \textbf{\texttt{self}:} Refers to the specific object instance, allowing methods to access and modify
-    its own properties (like \texttt{self.press\_count}).
+    \item \textbf{\texttt{self}:} Refers to the specific object instance. Methods use it to read and change
+    that object's own properties, such as \texttt{self.press\_count}.
     \item \textbf{Callbacks (functions as arguments):} Passing a function to \texttt{action} lets the button
     trigger your custom logic whenever a press is detected.
 \end{itemize}
@@ -175,19 +175,19 @@ Here is a quick reference for Python features you will encounter in each project
 
 \begin{table}[H]
 \centering
-\begin{tabular}{|l|p{6.5cm}|l|}
+\begin{tabular}{|l|>{\raggedright\arraybackslash}p{6.5cm}|l|}
     \hline
     \textbf{Concept} & \textbf{What it does} & \textbf{Where used} \\
     \hline
     \textbf{Tuples \& Lists} & Ordered collections like RGB colors \texttt{(255, 0, 0)} and indexable lists \texttt{pixels[0]} & Projects 2, 4, 5 \\
     \hline
-    \textbf{Callbacks} & Passing a function name as an argument to run on button events & Projects 2, 3, 4 \\
+    \textbf{Callbacks} & Passing a function name as an argument to run on button events & Projects 2, 3, 4, 7 \\
     \hline
     \textbf{Millisecond Timers} & Measuring reaction times and delays using \texttt{time.ticks\_ms()} and \texttt{time.ticks\_diff()} & Projects 2, 5 \\
     \hline
     \textbf{State Variables} & Using variables to track game phases (\texttt{STATE\_RED}, \texttt{STATE\_GREEN}) & Project 2 \\
     \hline
-    \textbf{Hardware Interrupts} & Rapidly detecting rotary encoder clicks without polling & Project 3 \\
+    \textbf{Hardware Interrupts} & Reacting instantly to button presses and rotary encoder turns without polling in the main loop & Projects 2, 3, 4, 7 \\
     \hline
     \textbf{Dictionaries \& JSON} & Key-value data mapping (\texttt{\{"mode": "rainbow"\}}) for network APIs & Projects 5, 7 \\
     \hline

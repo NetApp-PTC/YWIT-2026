@@ -12,7 +12,6 @@
 \graphicspath{ {images/} }  % we will keep our images organized under the images directory
 \usepackage{listings} % Source code formatting and highlighting
 \usepackage{xcolor}   % needed to color hyperlinks and source code
-\usepackage{hyperref} % create hyperlinks
 \usepackage[T1]{fontenc} % make sure quotes in Python listings are straight quotes
 \usepackage{tcolorbox}
 \usepackage{siunitx} % Allows us to use math symbols (like Omega) in normal paragraphs
@@ -21,6 +20,8 @@
 \usepackage{enumitem} % control the spacing of list items
 \usepackage{pdfpages} % used to include an externally created PDF (like our cover)
 \usepackage{titlesec} % allow formatting of the chapter/section headers
+\usepackage{array} % per-column formatting in tables (like ragged-right paragraph columns)
+\usepackage{hyperref} % create hyperlinks; must load after the packages above or link targets get duplicated
 
 % formatting of chapters shamelessly copied from here: https://tex.stackexchange.com/a/591399
 %%%%%%%%%% chapters
