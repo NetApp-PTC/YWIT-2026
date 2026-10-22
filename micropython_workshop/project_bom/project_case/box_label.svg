@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="8.5in" height="11in" viewBox="0 0 612 792">
+  <title>NetApp YWIT 2026 box labels</title>
+  <defs>
+    <style>
+      @font-face {
+        font-family: "LabelSans";
+        src: url("file:///System/Library/Fonts/Supplemental/Arial Bold.ttf");
+        font-weight: 700;
+      }
+      @font-face {
+        font-family: "LabelSans";
+        src: url("file:///System/Library/Fonts/Supplemental/Arial.ttf");
+        font-weight: 400;
+      }
+    </style>
+    <g id="label">
+      <rect x="-4.5" y="-4.5" width="261" height="75" fill="none" stroke="#9aa3ad" stroke-width="0.6" stroke-dasharray="1.6 1.8"/>
+      <rect x="0.8" y="0.8" width="250.4" height="64.4" fill="#ffffff" stroke="#0067C5" stroke-width="1.6"/>
+      <rect x="0.8" y="0.8" width="6.2" height="64.4" fill="#0067C5"/>
+      <text x="132" y="33.6" text-anchor="middle" dominant-baseline="central"
+            font-family="LabelSans, Arial, Helvetica, sans-serif" font-weight="700" font-size="18" fill="#142033">NetApp<tspan fill="#0067C5" font-weight="400">  &#183;  </tspan>YWIT 2026</text>
+    </g>
+  </defs>
+
+  <rect width="612" height="792" fill="#ffffff"/>
+  <text x="306" y="28" text-anchor="middle" font-family="LabelSans, Arial, Helvetica, sans-serif" font-size="9" fill="#5c6770">Print at actual size (100%). Cut on the dashed lines. Each label is 3.5 x 0.9 in.</text>
+
+  <!-- 2 columns x 8 rows. Label 252 x 66 pt, pitch 270 x 84 pt. -->
+  <use href="#label" x="45" y="48"/>
+  <use href="#label" x="315" y="48"/>
+  <use href="#label" x="45" y="132"/>
+  <use href="#label" x="315" y="132"/>
+  <use href="#label" x="45" y="216"/>
+  <use href="#label" x="315" y="216"/>
+  <use href="#label" x="45" y="300"/>
+  <use href="#label" x="315" y="300"/>
+  <use href="#label" x="45" y="384"/>
+  <use href="#label" x="315" y="384"/>
+  <use href="#label" x="45" y="468"/>
+  <use href="#label" x="315" y="468"/>
+  <use href="#label" x="45" y="552"/>
+  <use href="#label" x="315" y="552"/>
+  <use href="#label" x="45" y="636"/>
+  <use href="#label" x="315" y="636"/>
+</svg>
