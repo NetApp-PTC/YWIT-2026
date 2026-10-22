@@ -21,6 +21,7 @@
 *.eps
 *.pdf
 !micropython_workshop/project_guide/images/**/*.pdf
+!micropython_workshop/project_bom/project_case/box_label.pdf
 
 ## Bibliography auxiliary files (bibtex/biblatex/biber):
 *.bbl
